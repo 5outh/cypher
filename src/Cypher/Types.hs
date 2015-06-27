@@ -46,7 +46,7 @@ instance ToJSON Relationship where
 data RelationshipDecl = RelationshipDecl {
     rdType :: T.Text,
     direction :: RelType
-}
+} deriving (Show, Eq)
 
 instance ToJSON RelationshipDecl where
     toJSON (RelationshipDecl{..}) = object
@@ -58,7 +58,7 @@ data ShortestPathRequest = ShortestPathRequest {
     sprTo :: T.Text, -- URL
     maxDepth :: Int,
     relationships :: RelationshipDecl
-}
+} deriving (Show, Eq)
 
 instance ToJSON ShortestPathRequest where
     toJSON (ShortestPathRequest{..}) = object
@@ -72,7 +72,7 @@ data DijkstraRequest = DijkstraRequest {
     drTo :: T.Text,
     costProperty :: T.Text,
     drRelationships :: RelationshipDecl
-}
+} deriving (Show, Eq)
 
 instance ToJSON DijkstraRequest where 
     toJSON (DijkstraRequest{..}) = object 
@@ -108,8 +108,9 @@ type Id = Int
 
 -- | A Neo4j Action
 data Action = 
+      Authenticate T.Text T.Text
     -- | Node Actions
-    GetNode Id
+    |   GetNode Id
     | CreateNode (Maybe Props)
     | SetNodeProperty Id Prop Props
     | SetNodeProperies Id Props
@@ -125,7 +126,7 @@ data Action =
     | GetLabeledNodes Label
     --              Label-----v      v--Name v---Text Value        
     | GetLabeledNodeWithProperty Label Prop Prop
-    | GetAllLabels -- http://localhost:7474/db/data/labels
+    | GetAllLabels
     | GetNodeDegree Id RelType
     | GetNodeDegreeByType Id RelType [Typ]
 
