@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RankNTypes, RecordWildCards, StandaloneDeriving #-}
+{-# LANGUAGE OverloadedStrings, RankNTypes, RecordWildCards, DeriveFunctor #-}
 
 module Cypher.Types where
 
@@ -6,14 +6,15 @@ import Data.Aeson
 import qualified Data.Text as T
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Free
 
 data Statement = Statement {
     statement :: T.Text
-}
+} deriving (Show, Eq)
 
 data Neo4jRequest = Neo4jRequest {
     statements :: [Statement]
-}
+} deriving (Show, Eq)
 
 instance ToJSON Statement where
     toJSON (Statement stmt) = object ["statement" .= stmt]
@@ -28,13 +29,13 @@ instance ToJSON Neo4jRequest where
 data Connection = Connection {
     host :: T.Text,
     port :: Int
-}
+} deriving (Show, Eq)
 
 data Relationship = Relationship {
     to :: T.Text,
     typ :: T.Text,
     props :: Props
-}
+} deriving (Show, Eq)
 
 instance ToJSON Relationship where
     toJSON (Relationship{..}) = object 
@@ -106,11 +107,34 @@ type Props = Object
 -- | Alias for Int
 type Id = Int
 
+data AuthResponse = AuthResponse {
+    username :: T.Text,
+    passwordChange :: T.Text,
+    passwordChangeRequired :: T.Text
+} deriving (Show, Eq)
+
+instance FromJSON AuthResponse where
+    parseJSON (Object v) = AuthResponse <$> v .: "username"
+        <*> v .: "password_change"
+        <*> v .: "password_change_required"
+    parseJSON _ = mzero
+
+data RootResponse = RootResponse {
+    management :: T.Text,
+    data' :: T.Text
+} deriving (Show, Eq)
+
+instance FromJSON RootResponse where
+    parseJSON (Object v) = RootResponse <$> v .: "management"
+        <*> v .: "data"
+    parseJSON _ = mzero
+
 -- | A Neo4j Action
-data Action = 
-      Authenticate T.Text T.Text
+data ActionF next = 
+      Authenticate T.Text T.Text (AuthResponse -> next)
+    | GetRoot (RootResponse -> next)
     -- | Node Actions
-    |   GetNode Id
+    | GetNode Id
     | CreateNode (Maybe Props)
     | SetNodeProperty Id Prop Props
     | SetNodeProperies Id Props
@@ -155,4 +179,6 @@ data Action =
     | DropConstraint Label Prop
 
     | RunShortestPath ShortestPathRequest
-        deriving (Show, Eq)
+        deriving (Functor)
+
+type Neo4jAction = Free ActionF
