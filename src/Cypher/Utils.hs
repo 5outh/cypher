@@ -45,8 +45,3 @@ singleCommitUrl x = append "/commit" . singleUrl x
 authUrl :: T.Text -> Connection -> T.Text
 authUrl user = endpoint $ "/user/" <> user
 
--- | Generate authentication key for User/Password (for Authorization Header)
-authKey :: B.ByteString -> B.ByteString -> B.ByteString
-authKey user pass = "Basic " <> token
-    where token = Base64.encode $ user <> ":" <> pass
-

@@ -42,10 +42,12 @@ interpret manager conn = \case
                 _ -> return Nothing
 
         Authenticate user pass next -> do
-            let key = authKey (encodeUtf8 user) (encodeUtf8 pass)
-                url = authUrl user conn
+            let url = authUrl user conn
             
-            req <- json . get . auth key <$> parseUrl (T.unpack url)
+            req <- applyBasicAuth (encodeUtf8 user) (encodeUtf8 pass) 
+                    . json 
+                    . get 
+                    <$> parseUrl (T.unpack url)
 
             resp <- httpLbs req manager
 
