@@ -1,10 +1,10 @@
-{-# LANGUAGE LambdaCase, OverloadedStrings #-}
+{-# LANGUAGE LambdaCase, OverloadedStrings, RecordWildCards #-}
 module Cypher.Functions where
 
 import Cypher.Types
 import Cypher.Utils
 
-import Data.Aeson
+import qualified Data.Aeson as Aeson
 import Network.HTTP.Client
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.Text as T
@@ -20,42 +20,39 @@ authenticate user pass = liftF (Authenticate user pass id)
 root :: Neo4jAction RootResponse
 root = liftF $ GetRoot id 
 
-interpret :: Connection -> Neo4jAction r -> IO (Maybe r)
-interpret conn = \case
-    Free (GetRoot next) -> do
-        req' <- parseUrl (T.unpack (baseUrl conn))
-        
-        let req = req'{
-                method = "GET",
-                requestHeaders = [(hContentType, "application/json")]
-            }
-        
-        manager <- newManager defaultManagerSettings
-        resp <- httpLbs req manager
+addHeader header req = req { requestHeaders = header: requestHeaders req }
+json = addHeader (hContentType, "application/json")
+get req = req { method = "GET" }
+auth key = addHeader (hAuthorization, key)
 
-        let res = decode (responseBody resp) :: Maybe RootResponse
-        case res of
-            Just body -> interpret conn (next body)
-            _ -> return Nothing
+-- TODO: Clean
+interpret :: Manager -> Connection -> Neo4jAction r -> IO (Maybe r)
+interpret manager conn = \case
+    Free action -> case action of
 
-    Free (Authenticate user pass next) -> do
-        let key = authKey (encodeUtf8 user) (encodeUtf8 pass)
-            url = authUrl user conn
-        
-        req' <- parseUrl (T.unpack url)
-        
-        let req = req'{
-                method = "GET",
-                requestHeaders = [(hContentType, "application/json"), (hAuthorization, key)]
-            }
-        
-        manager <- newManager defaultManagerSettings
-        resp <- httpLbs req manager
+        GetRoot next -> do
 
-        let auth = decode (responseBody resp) :: Maybe AuthResponse
-        case auth of 
-            Just res -> interpret conn (next res)
-            _ -> return Nothing
+            req <- json . get <$> parseUrl (T.unpack (baseUrl conn))
+            resp <- httpLbs req manager
+
+            let res = Aeson.decode (responseBody resp) :: Maybe RootResponse
+            
+            case res of
+                Just body -> interpret manager conn (next body)
+                _ -> return Nothing
+
+        Authenticate user pass next -> do
+            let key = authKey (encodeUtf8 user) (encodeUtf8 pass)
+                url = authUrl user conn
+            
+            req <- json . get . auth key <$> parseUrl (T.unpack url)
+
+            resp <- httpLbs req manager
+
+            let auth = Aeson.decode (responseBody resp) :: Maybe AuthResponse
+            case auth of 
+                Just res -> interpret manager conn (next res)
+                _ -> return Nothing
 
     Pure r -> return (Just r)
 

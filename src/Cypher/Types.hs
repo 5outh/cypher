@@ -129,6 +129,7 @@ instance FromJSON RootResponse where
         <*> v .: "data"
     parseJSON _ = mzero
 
+-- TODO: Finish building this out
 -- | A Neo4j Action
 data ActionF next = 
       Authenticate T.Text T.Text (AuthResponse -> next)
