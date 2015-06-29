@@ -37,7 +37,7 @@ transactionUrl :: Connection -> T.Text
 transactionUrl = transaction
 
 singleUrl :: Int -> Connection -> T.Text
-singleUrl x = endpoint ("/" <> ident x) 
+singleUrl x = endpoint ("/db/data/node/" <> ident x)
 
 singleCommitUrl :: Int -> Connection -> T.Text
 singleCommitUrl x = append "/commit" . singleUrl x

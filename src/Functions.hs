@@ -18,8 +18,11 @@ type Endo a = a -> a
 authenticate :: T.Text -> T.Text -> Neo4jAction AuthResponse
 authenticate user pass = liftF (Authenticate user pass id)
 
+getNode :: Int -> Neo4jAction NodeResponse
+getNode nodeId = liftF (GetNode nodeId id)
+
 root :: Neo4jAction RootResponse
-root = liftF $ GetRoot id 
+root = liftF $ GetRoot id
 
 addHeader :: Header -> Endo Request
 addHeader header req = req { requestHeaders = header: requestHeaders req }
@@ -35,16 +38,19 @@ getRoot manager conn next = do
     req <- json . get <$> parseUrl (T.unpack (baseUrl conn))
     resp <- httpLbs req manager
     let res = Aeson.decode (responseBody resp) :: Maybe RootResponse
-    maybe (return Nothing) (interpret manager conn) (next <$> res) 
+    maybe (return Nothing) (interpret manager conn) (next <$> res)
+
+getNode_ :: Manager -> Connection -> Int -> (NodeResponse -> Neo4jAction a) -> IO (Maybe a)
+getNode_ manager conn nodeId next = do
+    req <- json . get <$> parseUrl (T.unpack (singleUrl nodeId conn))
+    resp <- httpLbs req manager
+    let res = Aeson.decode (responseBody resp) :: Maybe NodeResponse
+    maybe (return Nothing) (interpret manager conn) (next <$> res)
 
 interpret :: Manager -> Connection -> Neo4jAction r -> IO (Maybe r)
 interpret manager conn = \case
     Free action -> case action of
         GetRoot next -> getRoot manager conn next
+        GetNode nodeId next -> getNode_ manager conn nodeId next
         _ -> undefined
     Pure r -> return (Just r)
-
-
-test user pass = do
-    res <- authenticate user pass
-    return ()

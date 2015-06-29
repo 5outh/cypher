@@ -4,6 +4,7 @@ module Cypher.Types where
 
 import Data.Aeson
 import qualified Data.Text as T
+import qualified Data.Map as M
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Free
@@ -38,7 +39,7 @@ data Relationship = Relationship {
 } deriving (Show, Eq)
 
 instance ToJSON Relationship where
-    toJSON (Relationship{..}) = object 
+    toJSON (Relationship{..}) = object
         [ "to" .= to
         , "type" .= typ
         , "data" .= props
@@ -75,8 +76,8 @@ data DijkstraRequest = DijkstraRequest {
     drRelationships :: RelationshipDecl
 } deriving (Show, Eq)
 
-instance ToJSON DijkstraRequest where 
-    toJSON (DijkstraRequest{..}) = object 
+instance ToJSON DijkstraRequest where
+    toJSON (DijkstraRequest{..}) = object
         [ "to" .= drTo
         , "cost_property" .= costProperty
         , "relationships" .= toJSON drRelationships
@@ -129,13 +130,36 @@ instance FromJSON RootResponse where
         <*> v .: "data"
     parseJSON _ = mzero
 
+data NodeMetadata = NodeMetadata {
+    nodeId :: Int,
+    nodeLabels :: [T.Text]
+} deriving (Show, Eq)
+
+instance FromJSON NodeMetadata where
+    parseJSON (Object v) = NodeMetadata <$> v .: "id" <*> v .: "labels"
+    parseJSON _ = mzero
+
+-- NOTE: Links apart from `self` are not included; we can reconstruct them from the id.
+data NodeResponse = NodeResponse {
+    nodeExtensions :: Object,
+    nodeSelf :: T.Text,
+    nodeMetadata :: NodeMetadata,
+    nodeData :: Object
+} deriving (Show, Eq)
+
+instance FromJSON NodeResponse where
+    parseJSON (Object v) = NodeResponse <$> v .: "extensions"
+        <*> v .: "self"
+        <*> v .: "metadata"
+        <*> v .: "data"
+
 -- TODO: Finish building this out
 -- | A Neo4j Action
-data ActionF next = 
+data ActionF next =
       Authenticate T.Text T.Text (AuthResponse -> next)
     | GetRoot (RootResponse -> next)
     -- | Node Actions
-    | GetNode Id
+    | GetNode Id (NodeResponse -> next)
     | CreateNode (Maybe Props)
     | SetNodeProperty Id Prop Props
     | SetNodeProperies Id Props
@@ -149,7 +173,7 @@ data ActionF next =
     | DeleteLabel Id Label
     | GetLabels Id [Label]
     | GetLabeledNodes Label
-    --              Label-----v      v--Name v---Text Value        
+    --              Label-----v      v--Name v---Text Value
     | GetLabeledNodeWithProperty Label Prop Prop
     | GetAllLabels
     | GetNodeDegree Id RelType
@@ -163,7 +187,7 @@ data ActionF next =
     | GetRelationshipProperties Id
     | SetRelationshipProperties Id Props
     | DeleteRelationshipProperties Id
-    
+
     | GetRelationshipProperty Id Prop
     | DeleteRelationshipProperty Id Prop
 
