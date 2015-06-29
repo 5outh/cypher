@@ -24,6 +24,9 @@ endpoint x = append x . baseUrl
 dataUrl :: Connection -> T.Text
 dataUrl = endpoint "/db/data"
 
+nodeUrl :: Connection -> T.Text
+nodeUrl = endpoint "/db/data/node/"
+
 changePasswordUrl :: Connection -> T.Text
 changePasswordUrl = endpoint "/user/neo4j/password"
 

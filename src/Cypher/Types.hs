@@ -144,7 +144,7 @@ data NodeResponse = NodeResponse {
     nodeExtensions :: Object,
     nodeSelf :: T.Text,
     nodeMetadata :: NodeMetadata,
-    nodeData :: Object
+    nodeData :: Object -- NOTE: Given a way to parse THIS into a Haskell object, we can update etc.
 } deriving (Show, Eq)
 
 instance FromJSON NodeResponse where
@@ -160,7 +160,7 @@ data ActionF next =
     | GetRoot (RootResponse -> next)
     -- | Node Actions
     | GetNode Id (NodeResponse -> next)
-    | CreateNode (Maybe Props)
+    | CreateNode (Maybe Props) (NodeResponse -> next)
     | SetNodeProperty Id Prop Props
     | SetNodeProperies Id Props
     | GetNodeProperties Id
@@ -206,4 +206,5 @@ data ActionF next =
     | RunShortestPath ShortestPathRequest
         deriving (Functor)
 
+-- | A Neo4jAction is just a Free Monad
 type Neo4jAction = Free ActionF

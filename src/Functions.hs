@@ -15,11 +15,17 @@ import Data.Text.Encoding
 
 type Endo a = a -> a
 
+liftFn :: (MonadFree f m, Functor f) => ((a -> a) -> f b) -> m b
+liftFn f = liftF (f id)
+
 authenticate :: T.Text -> T.Text -> Neo4jAction AuthResponse
-authenticate user pass = liftF (Authenticate user pass id)
+authenticate user pass = liftFn (Authenticate user pass)
 
 getNode :: Int -> Neo4jAction NodeResponse
-getNode nodeId = liftF (GetNode nodeId id)
+getNode nodeId = liftFn (GetNode nodeId)
+
+createNode :: Maybe Props -> Neo4jAction NodeResponse
+createNode props = liftFn (CreateNode props)
 
 root :: Neo4jAction RootResponse
 root = liftF $ GetRoot id
@@ -33,8 +39,16 @@ json = addHeader (hContentType, "application/json")
 get :: Endo Request
 get req = req { method = "GET" }
 
-getRoot :: Manager -> Connection -> (RootResponse -> Neo4jAction a) -> IO (Maybe a)
-getRoot manager conn next = do
+post :: Endo Request
+post req = req { method = "POST" }
+
+maybeProps :: Maybe Props -> Endo Request
+maybeProps props req = case props of
+    Nothing -> req
+    Just props' -> req { requestBody = RequestBodyLBS (Aeson.encode props') }
+
+getRoot_ :: Manager -> Connection -> (RootResponse -> Neo4jAction a) -> IO (Maybe a)
+getRoot_ manager conn next = do
     req <- json . get <$> parseUrl (T.unpack (baseUrl conn))
     resp <- httpLbs req manager
     let res = Aeson.decode (responseBody resp) :: Maybe RootResponse
@@ -47,10 +61,18 @@ getNode_ manager conn nodeId next = do
     let res = Aeson.decode (responseBody resp) :: Maybe NodeResponse
     maybe (return Nothing) (interpret manager conn) (next <$> res)
 
+createNode_ :: Manager -> Connection -> Maybe Props -> (NodeResponse -> Neo4jAction a) -> IO (Maybe a)
+createNode_ manager conn props next = do
+    req <- json . post . maybeProps props <$> parseUrl (T.unpack (nodeUrl conn))
+    resp <- httpLbs req manager
+    let res = Aeson.decode (responseBody resp) :: Maybe NodeResponse
+    maybe (return Nothing) (interpret manager conn) (next <$> res)
+
 interpret :: Manager -> Connection -> Neo4jAction r -> IO (Maybe r)
 interpret manager conn = \case
     Free action -> case action of
-        GetRoot next -> getRoot manager conn next
+        GetRoot next -> getRoot_ manager conn next
         GetNode nodeId next -> getNode_ manager conn nodeId next
+        CreateNode props next -> createNode_ manager conn props next
         _ -> undefined
     Pure r -> return (Just r)
