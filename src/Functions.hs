@@ -13,6 +13,9 @@ import Network.HTTP.Types.Header
 import Control.Applicative
 import Data.Text.Encoding
 
+-- TODO: Refactor into Reader w/ Conn/Manager
+-- TODO: Move things around
+
 type Endo a = a -> a
 
 liftFn :: (MonadFree f m, Functor f) => ((a -> a) -> f b) -> m b
@@ -47,26 +50,36 @@ maybeProps props req = case props of
     Nothing -> req
     Just props' -> req { requestBody = RequestBodyLBS (Aeson.encode props') }
 
+body :: Aeson.FromJSON a => Response LB.ByteString -> Maybe a
+body = Aeson.decode . responseBody
+
+runRequest :: (a -> Request) -> (b -> IO a) -> Manager -> b -> IO (Response LB.ByteString)
+runRequest endo url manager conn = (`httpLbs` manager) =<< endo <$> url conn
+
+everythingOnAction
+  :: Aeson.FromJSON c =>
+     (Manager -> t -> b -> IO (Maybe d))
+     -> (a -> Request)
+     -> (t -> IO a)
+     -> Manager
+     -> t
+     -> (c -> b)
+     -> IO (Maybe d)
+everythingOnAction doNext endo url manager conn next = do
+    resp <- runRequest endo url manager conn
+    maybe (return Nothing) (doNext manager conn) (next <$> body resp)
+
 getRoot_ :: Manager -> Connection -> (RootResponse -> Neo4jAction a) -> IO (Maybe a)
-getRoot_ manager conn next = do
-    req <- json . get <$> parseUrl (T.unpack (baseUrl conn))
-    resp <- httpLbs req manager
-    let res = Aeson.decode (responseBody resp) :: Maybe RootResponse
-    maybe (return Nothing) (interpret manager conn) (next <$> res)
+getRoot_ manager conn next =
+    everythingOnAction interpret (json . get) baseUrl manager conn next
 
 getNode_ :: Manager -> Connection -> Int -> (NodeResponse -> Neo4jAction a) -> IO (Maybe a)
-getNode_ manager conn nodeId next = do
-    req <- json . get <$> parseUrl (T.unpack (singleUrl nodeId conn))
-    resp <- httpLbs req manager
-    let res = Aeson.decode (responseBody resp) :: Maybe NodeResponse
-    maybe (return Nothing) (interpret manager conn) (next <$> res)
+getNode_ manager conn nodeId next =
+ everythingOnAction interpret (json . get) (singleUrl nodeId) manager conn next
 
 createNode_ :: Manager -> Connection -> Maybe Props -> (NodeResponse -> Neo4jAction a) -> IO (Maybe a)
-createNode_ manager conn props next = do
-    req <- json . post . maybeProps props <$> parseUrl (T.unpack (nodeUrl conn))
-    resp <- httpLbs req manager
-    let res = Aeson.decode (responseBody resp) :: Maybe NodeResponse
-    maybe (return Nothing) (interpret manager conn) (next <$> res)
+createNode_ manager conn props next =
+    everythingOnAction interpret (json . post . maybeProps props) nodeUrl manager conn next
 
 interpret :: Manager -> Connection -> Neo4jAction r -> IO (Maybe r)
 interpret manager conn = \case

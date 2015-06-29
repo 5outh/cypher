@@ -8,6 +8,8 @@ import qualified Data.Text as T
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C8
 import Data.ByteString.Base64 as Base64
+import Network.HTTP.Client (parseUrl, Request(..))
+import Control.Monad.Catch (MonadThrow(..))
 
 append :: Monoid a => a -> a -> a
 append = flip (<>)
@@ -15,36 +17,28 @@ append = flip (<>)
 ident :: Int -> T.Text
 ident x = T.pack $ show x
 
-baseUrl :: Connection -> T.Text
-baseUrl conn = "http://" <> host conn <> ":" <> (T.pack (show (port conn)))
+parseEndpoint t = parseUrl . T.unpack . append t . base
 
-endpoint :: T.Text -> Connection -> T.Text
-endpoint x = append x . baseUrl
+base :: Connection -> T.Text
+base conn = "http://" <> connHost conn <> ":" <> (T.pack (show (connPort conn)))
 
-dataUrl :: Connection -> T.Text
-dataUrl = endpoint "/db/data"
+baseUrl :: MonadThrow m => Connection -> m Request
+baseUrl = parseEndpoint "/"
 
-nodeUrl :: Connection -> T.Text
-nodeUrl = endpoint "/db/data/node/"
+dataUrl :: MonadThrow m => Connection -> m Request
+dataUrl = parseEndpoint "/db/data/"
 
-changePasswordUrl :: Connection -> T.Text
-changePasswordUrl = endpoint "/user/neo4j/password"
+nodeUrl :: MonadThrow m => Connection -> m Request
+nodeUrl = parseEndpoint "/db/data/node/"
 
-transaction :: Connection -> T.Text
-transaction = append "/transaction" . dataUrl
+changePasswordUrl :: MonadThrow m => Connection -> m Request
+changePasswordUrl = parseEndpoint "/user/neo4j/password/"
 
-commitUrl :: Connection -> T.Text
-commitUrl = append "/commit" . transaction
+transactionUrl :: MonadThrow m => Connection -> m Request
+transactionUrl = parseEndpoint "/db/data/transaction/"
 
-transactionUrl :: Connection -> T.Text
-transactionUrl = transaction
+commitUrl :: MonadThrow m => Connection -> m Request
+commitUrl = parseEndpoint "/db/data/transaction/commit/"
 
-singleUrl :: Int -> Connection -> T.Text
-singleUrl x = endpoint ("/db/data/node/" <> ident x)
-
-singleCommitUrl :: Int -> Connection -> T.Text
-singleCommitUrl x = append "/commit" . singleUrl x
-
-authUrl :: T.Text -> Connection -> T.Text
-authUrl user = endpoint $ "/user/" <> user
-
+singleUrl :: MonadThrow m => Int -> Connection -> m Request
+singleUrl x =  parseEndpoint ("/db/data/node/" <> ident x)

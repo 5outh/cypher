@@ -28,8 +28,8 @@ instance ToJSON Neo4jRequest where
     toJSON (Neo4jRequest stmts) = object ["statements" .= map toJSON stmts]
 
 data Connection = Connection {
-    host :: T.Text,
-    port :: Int
+    connHost :: T.Text,
+    connPort :: Int
 } deriving (Show, Eq)
 
 data Relationship = Relationship {
