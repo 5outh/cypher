@@ -3,6 +3,7 @@ module Cypher.Functions where
 
 import Cypher.Types
 import Cypher.Utils
+import Cypher.Urls
 
 import qualified Data.Aeson as Aeson
 import Network.HTTP.Client
@@ -18,11 +19,6 @@ import Data.Text.Encoding
 -- TODO: Move things around
 -- TODO: Refactor from Maybe into ErrorResponse | Response
 
-type Endo a = a -> a
-
-liftFn :: (MonadFree f m, Functor f) => ((a -> a) -> f b) -> m b
-liftFn f = liftF (f id)
-
 authenticate :: T.Text -> T.Text -> Neo4jAction AuthResponse
 authenticate user pass = liftFn (Authenticate user pass)
 
@@ -31,6 +27,16 @@ getNode nodeId = liftFn (GetNode nodeId)
 
 createNode :: Maybe Props -> Neo4jAction NodeResponse
 createNode props = liftFn (CreateNode props)
+
+-- NOTE: Nodes with relationships cannot be deleted.
+deleteNode :: Int -> Neo4jAction ()
+deleteNode nodeId = liftF (DeleteNode nodeId ())
+
+listPropertyKeys :: Neo4jAction [T.Text]
+listPropertyKeys = liftFn ListPropertyKeys
+
+getRelationship :: Int -> Neo4jAction RelationshipResponse
+getRelationship relId = liftFn (GetRelationship relId)
 
 root :: Neo4jAction RootResponse
 root = liftF $ GetRoot id
@@ -80,6 +86,10 @@ getRoot_ :: Connection -> (RootResponse -> Neo4jAction a) -> IO (Maybe a)
 getRoot_ conn next =
     everythingOnAction interpret (json . get) baseUrl conn next
 
+listPropertyKeys_ :: Connection -> ([T.Text] -> Neo4jAction a) -> IO (Maybe a)
+listPropertyKeys_ conn next =
+    everythingOnAction interpret (json . get) propertyKeysUrl conn next
+
 getNode_ :: Connection -> Int -> (NodeResponse -> Neo4jAction a) -> IO (Maybe a)
 getNode_ conn nodeId next =
  everythingOnAction interpret (json . get) (singleUrl nodeId) conn next
@@ -93,13 +103,18 @@ deleteNode_ conn nodeId next = do
     runRequest (json . delete) (singleUrl nodeId) conn
     interpret conn next
 
+getRel_ conn relId next =
+    everythingOnAction interpret (json . get) (singleRelationshipUrl relId) conn next
+
 interpret :: Connection -> Neo4jAction r -> IO (Maybe r)
 interpret conn = \case
     Free action -> case action of
+        ListPropertyKeys next -> listPropertyKeys_ conn next
         GetRoot next -> getRoot_ conn next
         GetNode nodeId next -> getNode_ conn nodeId next
         CreateNode props next -> createNode_ conn props next
         DeleteNode nodeId next -> deleteNode_ conn nodeId next
+        GetRelationship relId next -> getRel_ conn relId next
         _ -> undefined
     Pure r -> return (Just r)
 
