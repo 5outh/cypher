@@ -14,6 +14,7 @@ import Control.Monad.Free
 import Network.HTTP.Types.Header
 import Control.Applicative
 import Data.Text.Encoding
+import Data.HashMap.Lazy as L (empty)
 
 -- TODO: Refactor into Reader w/ Conn/Manager
 -- TODO: Move things around
@@ -37,6 +38,9 @@ listPropertyKeys = liftFn ListPropertyKeys
 
 getRelationship :: Int -> Neo4jAction RelationshipResponse
 getRelationship relId = liftFn (GetRelationship relId)
+
+createRelationship :: Int -> Relationship -> Neo4jAction RelationshipResponse
+createRelationship nodeId rel = liftFn (CreateRelationship nodeId rel)
 
 root :: Neo4jAction RootResponse
 root = liftF $ GetRoot id
@@ -103,8 +107,11 @@ deleteNode_ conn nodeId next = do
     runRequest (json . delete) (singleUrl nodeId) conn
     interpret conn next
 
-getRel_ conn relId next =
-    everythingOnAction interpret (json . get) (singleRelationshipUrl relId) conn next
+createRelationship_ conn nodeId rel next =
+    everythingOnAction interpret (json . post) (relationshipUrl nodeId) conn next
+
+getRel_ conn relId =
+    everythingOnAction interpret (json . get) (singleRelationshipUrl relId) conn
 
 interpret :: Connection -> Neo4jAction r -> IO (Maybe r)
 interpret conn = \case
@@ -115,10 +122,16 @@ interpret conn = \case
         CreateNode props next -> createNode_ conn props next
         DeleteNode nodeId next -> deleteNode_ conn nodeId next
         GetRelationship relId next -> getRel_ conn relId next
+        -- TODO borked
+        CreateRelationship nodeId rel next -> createRelationship_ conn nodeId rel next
         _ -> undefined
     Pure r -> return (Just r)
 
 newtype Neo4j a = Neo4j{ runNeo4j :: IO (Maybe a) }
 
+-- SOME TEST JUNK
+
 testConnection :: IO Connection
 testConnection = (<$> newManager defaultManagerSettings) (Connection "localhost" 7474)
+
+testRel = Relationship "http://localhost:7474/db/data/node/5" "TEST" L.empty

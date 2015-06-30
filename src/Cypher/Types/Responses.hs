@@ -8,6 +8,30 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Free
 
+-- | Avaliable Relationship Types
+data RelType = All | In | Out deriving (Eq, Enum)
+
+-- Used for JSON serialization
+instance Show RelType where
+    show All = "all"
+    show In = "in"
+    show Out = "out"
+
+-- | A Neo4j Node Type
+type Typ = T.Text
+
+-- | A Neo4j Label
+type Label = T.Text
+
+-- | A Generic Neo4j Property
+type Prop = T.Text
+
+-- | Alias for a JSON object
+type Props = Object
+
+-- | Alias for Int
+type Id = Int
+
 data Statement = Statement {
     statement :: T.Text
 } deriving (Show, Eq)
@@ -78,30 +102,6 @@ instance ToJSON DijkstraRequest where
         , "algorithm" .= ("dijkstra" :: T.Text)
         ]
 
--- | Avaliable Relationship Types
-data RelType = All | In | Out deriving (Eq, Enum)
-
--- Used for JSON serialization
-instance Show RelType where
-    show All = "all"
-    show In = "in"
-    show Out = "out"
-
--- | A Neo4j Node Type
-type Typ = T.Text
-
--- | A Neo4j Label
-type Label = T.Text
-
--- | A Generic Neo4j Property
-type Prop = T.Text
-
--- | Alias for a JSON object
-type Props = Object
-
--- | Alias for Int
-type Id = Int
-
 data AuthResponse = AuthResponse {
     username :: T.Text,
     passwordChange :: T.Text,
@@ -146,6 +146,7 @@ instance FromJSON NodeResponse where
         <*> v .: "self"
         <*> v .: "metadata"
         <*> v .: "data"
+    parseJSON _ = mzero
 
 data RelationshipMetadata = RelationshipMetadata {
     relId :: Int,
@@ -154,10 +155,13 @@ data RelationshipMetadata = RelationshipMetadata {
 
 instance FromJSON RelationshipMetadata where
     parseJSON (Object v) = RelationshipMetadata <$> v .: "id" <*> v .: "type"
+    parseJSON _ = mzero
 
 data RelationshipResponse = RelationshipResponse {
     relExtensions :: Object,
     relSelf :: T.Text,
+    relStart :: T.Text, -- Start Node URL
+    relEnd :: T.Text, -- End Node URL
     relMetadata :: RelationshipMetadata,
     relData :: Object
 } deriving (Show, Eq)
@@ -165,5 +169,8 @@ data RelationshipResponse = RelationshipResponse {
 instance FromJSON RelationshipResponse where
     parseJSON (Object v) = RelationshipResponse <$> v .: "extensions"
         <*> v .: "self"
+        <*> v .: "start"
+        <*> v .: "end"
         <*> v .: "metadata"
         <*> v .: "data"
+    parseJSON _ = mzero
