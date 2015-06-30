@@ -8,6 +8,7 @@ import qualified Data.Map as M
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Free
+import Network.HTTP.Client
 
 data Statement = Statement {
     statement :: T.Text
@@ -29,8 +30,9 @@ instance ToJSON Neo4jRequest where
 
 data Connection = Connection {
     connHost :: T.Text,
-    connPort :: Int
-} deriving (Show, Eq)
+    connPort :: Int,
+    connManager :: Manager
+}
 
 data Relationship = Relationship {
     to :: T.Text,
@@ -161,6 +163,7 @@ data ActionF next =
     -- | Node Actions
     | GetNode Id (NodeResponse -> next)
     | CreateNode (Maybe Props) (NodeResponse -> next)
+    | DeleteNode Id next
     | SetNodeProperty Id Prop Props
     | SetNodeProperies Id Props
     | GetNodeProperties Id
