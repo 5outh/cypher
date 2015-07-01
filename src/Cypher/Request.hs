@@ -42,5 +42,6 @@ maybeProps props req = case props of
 payload :: Aeson.ToJSON a => a -> Endo Request
 payload ps req = req { requestBody = RequestBodyLBS (Aeson.encode ps) }
 
+-- | NOTE: `str` needs to be encoded as a JSON value
 payloadRaw :: T.Text -> Endo Request
-payloadRaw str req = req { requestBody = RequestBodyLBS (LB.fromStrict $ encodeUtf8 ("\"" <> str <> "\"")) }
+payloadRaw str req = req { requestBody = RequestBodyLBS (LB.fromStrict $ encodeUtf8 str) }
