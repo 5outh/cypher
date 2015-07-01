@@ -39,6 +39,8 @@ everythingOnAction doNext endo url conn@Connection{..} next = do
     resp <- runRequest endo url conn
     maybe (return Nothing) (doNext conn) (next <$> body resp)
 
+deleteByUrl conn url next = runRequest (json . delete) url conn >> interpret conn next
+
 getRoot_ :: Connection -> (RootResponse -> Neo4jAction a) -> IO (Maybe a)
 getRoot_ conn next =
     everythingOnAction interpret (json . get) baseUrl conn next
@@ -68,6 +70,10 @@ getRelationship_ :: Connection -> Int -> (RelationshipResponse ~> r) -> IO (Mayb
 getRelationship_ conn relId =
     everythingOnAction interpret (json . get) (singleRelationshipUrl relId) conn
 
+deleteRelationship_ :: Connection -> Int -> Neo4jAction r -> IO (Maybe r)
+deleteRelationship_ conn relId next = deleteByUrl conn (singleRelationshipUrl relId) next
+
+
 interpret :: Connection -> Neo4jAction r -> IO (Maybe r)
 interpret conn = \case
     Free action -> case action of
@@ -78,6 +84,7 @@ interpret conn = \case
         DeleteNode nodeId next -> deleteNode_ conn nodeId next
         GetRelationship relId next -> getRelationship_ conn relId next
         CreateRelationship nodeId rel next -> createRelationship_ conn nodeId rel next
+        DeleteRelationship relId next -> deleteRelationship_ conn relId next
         _ -> undefined
     Pure r -> return (Just r)
 

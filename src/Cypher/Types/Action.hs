@@ -38,7 +38,7 @@ data ActionF next =
     | GetRelationship Id (RelationshipResponse -> next)
     -- NB. Id is starting node's ID
     | CreateRelationship Id Relationship (RelationshipResponse -> next)
-    | DeleteRelationship Id
+    | DeleteRelationship Id next
     | GetRelationshipProperties Id
     | SetRelationshipProperties Id Props
     | DeleteRelationshipProperties Id
