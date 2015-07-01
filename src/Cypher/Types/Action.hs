@@ -43,7 +43,7 @@ data ActionF next =
     | SetRelationshipProperties Id Props next
     | DeleteRelationshipProperties Id
 
-    | GetRelationshipProperty Id Prop
+    | GetRelationshipProperty Id Prop (T.Text -> next)
     | DeleteRelationshipProperty Id Prop
 
     | GetRelationships RelType [Typ]

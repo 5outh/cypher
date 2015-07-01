@@ -6,9 +6,11 @@ import Cypher.Utils
 import Cypher.Urls
 import Cypher.Actions
 import Cypher.Request
+import Debug.Trace
 
 import Network.HTTP.Client
 import qualified Data.Aeson as Aeson
+import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.Text as T
 import Control.Monad.Free
@@ -82,6 +84,12 @@ setRelationshipProperties_ conn relId props next = do
     runRequest (json . put . payload props) (relationshipPropertiesUrl relId) conn
     interpret conn next
 
+getRelationshipProperty_ :: Connection -> Int -> T.Text -> (T.Text ~> a) -> IO (Maybe a)
+getRelationshipProperty_ conn relId prop next = do
+    resp <- runRequest (json . get) (singleRelationshipPropertyUrl relId prop) conn
+    maybe (return Nothing) (interpret conn) (Just . next $ decodeBody resp)
+        where decodeBody = decodeUtf8 . LB.toStrict . responseBody
+
 interpret :: Connection -> Neo4jAction r -> IO (Maybe r)
 interpret conn = \case
     Free action -> case action of
@@ -95,6 +103,7 @@ interpret conn = \case
         DeleteRelationship relId next -> deleteRelationship_ conn relId next
         GetRelationshipProperties relId next -> getRelationshipProperties_ conn relId next
         SetRelationshipProperties relId props next -> setRelationshipProperties_ conn relId props next
+        GetRelationshipProperty relId prop next -> getRelationshipProperty_ conn relId prop next
         _ -> undefined
     Pure r -> return (Just r)
 

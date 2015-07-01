@@ -36,6 +36,9 @@ deleteRelationship relId = liftF (DeleteRelationship relId ())
 getRelationshipProperties :: Int ~> Props
 getRelationshipProperties relId = liftFn (GetRelationshipProperties relId)
 
+getRelationshipProperty :: Int -> T.Text ~> T.Text
+getRelationshipProperty relId prop = liftFn (GetRelationshipProperty relId prop)
+
 setRelationshipProperties :: Int -> Props ~> ()
 setRelationshipProperties relId props = liftF (SetRelationshipProperties relId props ())
 
