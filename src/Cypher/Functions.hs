@@ -96,9 +96,9 @@ setRelationshipProperty_ conn relId key val next = do
     runRequest (json . put . payload val) (singleRelationshipPropertyUrl relId key) conn
     interpret conn next
 
-getNodeRelationships_ :: Connection -> Int -> RelType -> ([RelationshipResponse] ~> r) -> IO (Maybe r)
-getNodeRelationships_ conn nodeId relType =
-    everythingOnAction interpret (json . get) (nodeRelationshipsUrl nodeId relType) conn
+getNodeRelationships_ :: Connection -> Int -> RelType -> [T.Text] -> ([RelationshipResponse] ~> r) -> IO (Maybe r)
+getNodeRelationships_ conn nodeId relType types =
+    everythingOnAction interpret (json . get) (nodeRelationshipsUrl nodeId relType types) conn
 
 interpret :: Connection -> Neo4jAction r -> IO (Maybe r)
 interpret conn = \case
@@ -115,7 +115,7 @@ interpret conn = \case
         SetRelationshipProperties relId props next -> setRelationshipProperties_ conn relId props next
         GetRelationshipProperty relId prop next -> getRelationshipProperty_ conn relId prop next
         SetRelationshipProperty relId key val next -> setRelationshipProperty_ conn relId key val next
-        GetNodeRelationships nodeId relType next -> getNodeRelationships_ conn nodeId relType next
+        GetNodeRelationships nodeId relType types next -> getNodeRelationships_ conn nodeId relType types next
         _ -> undefined
     Pure r -> return (Just r)
 

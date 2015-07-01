@@ -45,8 +45,8 @@ setRelationshipProperties relId props = liftF (SetRelationshipProperties relId p
 setRelationshipProperty :: Int -> Prop -> Prop ~> ()
 setRelationshipProperty relId propKey propVal = liftF (SetRelationshipProperty relId propKey propVal ())
 
-getNodeRelationships :: Int -> RelType ~> [RelationshipResponse]
-getNodeRelationships nodeId relType = liftFn (GetNodeRelationships nodeId relType)
+getNodeRelationships :: Int -> RelType -> [T.Text] ~> [RelationshipResponse]
+getNodeRelationships nodeId relType types = liftFn (GetNodeRelationships nodeId relType types)
 
 root :: Neo4jAction RootResponse
 root = liftF $ GetRoot id

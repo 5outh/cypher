@@ -47,9 +47,15 @@ singleRelationshipPropertyUrl relId prop =
 relationshipUrl :: MonadThrow m => Int -> Connection -> m Request
 relationshipUrl startNodeId = parseEndpoint ("/db/data/node/" <> ident startNodeId <> "/relationships")
 
-nodeRelationshipsUrl :: MonadThrow m => Int -> RelType -> Connection -> m Request
-nodeRelationshipsUrl nodeId relType =
-    parseEndpoint ("/db/data/node/" <> ident nodeId <> "/relationships/" <> T.pack (show relType))
+nodeRelationshipsUrl :: MonadThrow m => Int -> RelType -> [T.Text] -> Connection -> m Request
+nodeRelationshipsUrl nodeId relType types =
+    parseEndpoint $ mconcat [ "/db/data/node/"
+                            , ident nodeId
+                            , "/relationships/"
+                            , T.pack (show relType)
+                            , "/"
+                            , T.intercalate "&" types
+                            ]
 
 propertyKeysUrl :: MonadThrow m => Connection -> m Request
 propertyKeysUrl = parseEndpoint "/db/data/propertykeys"

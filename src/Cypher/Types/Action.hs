@@ -32,7 +32,7 @@ data ActionF next =
     | GetAllLabels
     | GetNodeDegree Id RelType
     | GetNodeDegreeByType Id RelType [Typ]
-    | GetNodeRelationships Id RelType ([RelationshipResponse] -> next)
+    | GetNodeRelationships Id RelType [T.Text] ([RelationshipResponse] -> next)
 
     -- | Relationship Actions
     | GetRelationship Id (RelationshipResponse -> next)
