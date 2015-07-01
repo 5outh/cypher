@@ -63,16 +63,24 @@ deleteNode_ conn nodeId next = do
     interpret conn next
 
 createRelationship_ :: Connection -> Int -> Relationship -> (RelationshipResponse ~> r) -> IO (Maybe r)
-createRelationship_ conn nodeId rel next =
-    everythingOnAction interpret (json . post . payload rel) (relationshipUrl nodeId) conn next
+createRelationship_ conn nodeId rel =
+    everythingOnAction interpret (json . post . payload rel) (relationshipUrl nodeId) conn
 
 getRelationship_ :: Connection -> Int -> (RelationshipResponse ~> r) -> IO (Maybe r)
 getRelationship_ conn relId =
     everythingOnAction interpret (json . get) (singleRelationshipUrl relId) conn
 
 deleteRelationship_ :: Connection -> Int -> Neo4jAction r -> IO (Maybe r)
-deleteRelationship_ conn relId next = deleteByUrl conn (singleRelationshipUrl relId) next
+deleteRelationship_ conn relId = deleteByUrl conn (singleRelationshipUrl relId)
 
+getRelationshipProperties_ :: Connection -> Int -> (Props ~> r) -> IO (Maybe r)
+getRelationshipProperties_ conn relId =
+    everythingOnAction interpret (json . get) (relationshipPropertiesUrl relId) conn
+
+setRelationshipProperties_ :: Connection -> Int -> Props -> Neo4jAction r -> IO (Maybe r)
+setRelationshipProperties_ conn relId props next = do
+    runRequest (json . put . payload props) (relationshipPropertiesUrl relId) conn
+    interpret conn next
 
 interpret :: Connection -> Neo4jAction r -> IO (Maybe r)
 interpret conn = \case
@@ -85,6 +93,8 @@ interpret conn = \case
         GetRelationship relId next -> getRelationship_ conn relId next
         CreateRelationship nodeId rel next -> createRelationship_ conn nodeId rel next
         DeleteRelationship relId next -> deleteRelationship_ conn relId next
+        GetRelationshipProperties relId next -> getRelationshipProperties_ conn relId next
+        SetRelationshipProperties relId props next -> setRelationshipProperties_ conn relId props next
         _ -> undefined
     Pure r -> return (Just r)
 
@@ -93,4 +103,4 @@ interpret conn = \case
 testConnection :: IO Connection
 testConnection = (<$> newManager defaultManagerSettings) (Connection "localhost" 7474)
 
-testRel = Relationship "http://localhost:7474/db/data/node/5" "TEST" L.empty
+testRel = Relationship "http://localhost:7474/db/data/node/5" "TEST" (Aeson.object [])

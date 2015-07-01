@@ -24,6 +24,9 @@ get = setMethod "GET"
 post :: Endo Request
 post = setMethod "POST"
 
+put :: Endo Request
+put = setMethod "PUT"
+
 delete :: Endo Request
 delete = setMethod "DELETE"
 

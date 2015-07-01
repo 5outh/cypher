@@ -26,11 +26,18 @@ listPropertyKeys = liftFn ListPropertyKeys
 getRelationship :: Int ~> RelationshipResponse
 getRelationship relId = liftFn (GetRelationship relId)
 
+-- NOTE: This is a little weird, since the start node is encoded in the relationship itself.
 createRelationship :: Int -> Relationship ~> RelationshipResponse
 createRelationship nodeId rel = liftFn (CreateRelationship nodeId rel)
 
 deleteRelationship :: Int ~> ()
 deleteRelationship relId = liftF (DeleteRelationship relId ())
+
+getRelationshipProperties :: Int ~> Props
+getRelationshipProperties relId = liftFn (GetRelationshipProperties relId)
+
+setRelationshipProperties :: Int -> Props ~> ()
+setRelationshipProperties relId props = liftF (SetRelationshipProperties relId props ())
 
 root :: Neo4jAction RootResponse
 root = liftF $ GetRoot id

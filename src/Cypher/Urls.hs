@@ -37,6 +37,9 @@ singleUrl x =  parseEndpoint ("/db/data/node/" <> ident x)
 singleRelationshipUrl :: MonadThrow m => Int -> Connection -> m Request
 singleRelationshipUrl x = parseEndpoint ("/db/data/relationship/" <> ident x)
 
+relationshipPropertiesUrl :: MonadThrow m => Int -> Connection -> m Request
+relationshipPropertiesUrl x = parseEndpoint ("/db/data/relationship/" <> ident x <> "/properties")
+
 relationshipUrl :: MonadThrow m => Int -> Connection -> m Request
 relationshipUrl startNodeId = parseEndpoint ("/db/data/node/" <> ident startNodeId <> "/relationships")
 

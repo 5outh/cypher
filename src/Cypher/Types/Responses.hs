@@ -27,7 +27,7 @@ type Label = T.Text
 type Prop = T.Text
 
 -- | Alias for a JSON object
-type Props = Object
+type Props = Value
 
 -- | Alias for Int
 type Id = Int
