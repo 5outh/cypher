@@ -4,14 +4,15 @@ module Cypher.Functions where
 import Cypher.Types
 import Cypher.Utils
 import Cypher.Urls
+import Cypher.Actions
+import Cypher.Request
 
-import qualified Data.Aeson as Aeson
 import Network.HTTP.Client
+import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as LB
-import qualified Data.ByteString as B
 import qualified Data.Text as T
 import Control.Monad.Free
-import Network.HTTP.Types.Header
+import Control.Monad.Reader
 import Control.Applicative
 import Data.Text.Encoding
 import Data.HashMap.Lazy as L (empty)
@@ -19,57 +20,6 @@ import Data.HashMap.Lazy as L (empty)
 -- TODO: Refactor into Reader w/ Conn/Manager
 -- TODO: Move things around
 -- TODO: Refactor from Maybe into ErrorResponse | Response
-
-authenticate :: T.Text -> T.Text -> Neo4jAction AuthResponse
-authenticate user pass = liftFn (Authenticate user pass)
-
-getNode :: Int -> Neo4jAction NodeResponse
-getNode nodeId = liftFn (GetNode nodeId)
-
-createNode :: Maybe Props -> Neo4jAction NodeResponse
-createNode props = liftFn (CreateNode props)
-
--- NOTE: Nodes with relationships cannot be deleted.
-deleteNode :: Int -> Neo4jAction ()
-deleteNode nodeId = liftF (DeleteNode nodeId ())
-
-listPropertyKeys :: Neo4jAction [T.Text]
-listPropertyKeys = liftFn ListPropertyKeys
-
-getRelationship :: Int -> Neo4jAction RelationshipResponse
-getRelationship relId = liftFn (GetRelationship relId)
-
-createRelationship :: Int -> Relationship -> Neo4jAction RelationshipResponse
-createRelationship nodeId rel = liftFn (CreateRelationship nodeId rel)
-
-root :: Neo4jAction RootResponse
-root = liftF $ GetRoot id
-
-addHeader :: Header -> Endo Request
-addHeader header req = req { requestHeaders = header: requestHeaders req }
-
-json :: Endo Request
-json = addHeader (hContentType, "application/json")
-
-setMethod :: B.ByteString -> Endo Request
-setMethod typ req = req{ method = typ}
-
-get :: Endo Request
-get = setMethod "GET"
-
-post :: Endo Request
-post = setMethod "POST"
-
-delete :: Endo Request
-delete = setMethod "DELETE"
-
-maybeProps :: Maybe Props -> Endo Request
-maybeProps props req = case props of
-    Nothing -> req
-    Just props' -> req { requestBody = RequestBodyLBS (Aeson.encode props') }
-
-payload :: Aeson.ToJSON a => a -> Endo Request
-payload ps req = req { requestBody = RequestBodyLBS (Aeson.encode ps) }
 
 body :: Aeson.FromJSON a => Response LB.ByteString -> Maybe a
 body = Aeson.decode . responseBody
@@ -125,13 +75,9 @@ interpret conn = \case
         CreateNode props next -> createNode_ conn props next
         DeleteNode nodeId next -> deleteNode_ conn nodeId next
         GetRelationship relId next -> getRel_ conn relId next
-        -- TODO borked
         CreateRelationship nodeId rel next -> createRelationship_ conn nodeId rel next
         _ -> undefined
     Pure r -> return (Just r)
-
--- TODO use
-newtype Neo4j a = Neo4j{ runNeo4j :: IO (Maybe a) }
 
 -- SOME TEST JUNK
 
