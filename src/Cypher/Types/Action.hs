@@ -15,6 +15,7 @@ data ActionF next =
     | GetNode Id (NodeResponse -> next)
     | CreateNode (Maybe Props) (NodeResponse -> next)
     | DeleteNode Id next
+
     | SetNodeProperty Id Prop Props
     | SetNodeProperies Id Props
     | GetNodeProperties Id
@@ -48,7 +49,7 @@ data ActionF next =
     | DeleteRelationshipProperty Id Prop
 
     | GetRelationships RelType [Typ]
-    | GetRelationshipTypes
+    | GetRelationshipTypes ([T.Text] -> next)
 
     -- | Schema
     | CreateIndex T.Text [Prop] -- Index name, property_keys

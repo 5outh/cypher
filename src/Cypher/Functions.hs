@@ -100,6 +100,10 @@ getNodeRelationships_ :: Connection -> Int -> RelType -> [T.Text] -> ([Relations
 getNodeRelationships_ conn nodeId relType types =
     everythingOnAction interpret (json . get) (nodeRelationshipsUrl nodeId relType types) conn
 
+getRelationshipTypes_ :: Connection -> ([T.Text] ~> r) -> IO (Maybe r)
+getRelationshipTypes_ conn next =
+    everythingOnAction interpret (json . get) relationshipTypesUrl conn next
+
 interpret :: Connection -> Neo4jAction r -> IO (Maybe r)
 interpret conn = \case
     Free action -> case action of
@@ -116,6 +120,7 @@ interpret conn = \case
         GetRelationshipProperty relId prop next -> getRelationshipProperty_ conn relId prop next
         SetRelationshipProperty relId key val next -> setRelationshipProperty_ conn relId key val next
         GetNodeRelationships nodeId relType types next -> getNodeRelationships_ conn nodeId relType types next
+        GetRelationshipTypes next -> getRelationshipTypes_ conn next
         _ -> undefined
     Pure r -> return (Just r)
 
