@@ -90,6 +90,10 @@ getRelationshipProperty_ conn relId prop next = do
     maybe (return Nothing) (interpret conn) (Just . next $ decodeBody resp)
         where decodeBody = decodeUtf8 . LB.toStrict . responseBody
 
+setRelationshipProperty_ conn relId key val next = do
+    runRequest (json . put . payloadRaw val) (singleRelationshipPropertyUrl relId key) conn
+    interpret conn next
+
 interpret :: Connection -> Neo4jAction r -> IO (Maybe r)
 interpret conn = \case
     Free action -> case action of
@@ -104,6 +108,7 @@ interpret conn = \case
         GetRelationshipProperties relId next -> getRelationshipProperties_ conn relId next
         SetRelationshipProperties relId props next -> setRelationshipProperties_ conn relId props next
         GetRelationshipProperty relId prop next -> getRelationshipProperty_ conn relId prop next
+        SetRelationshipProperty relId key val next -> setRelationshipProperty_ conn relId key val next
         _ -> undefined
     Pure r -> return (Just r)
 

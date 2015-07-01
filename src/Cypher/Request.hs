@@ -4,10 +4,14 @@ module Cypher.Request where
 import Cypher.Utils
 import Cypher.Types.Responses
 
+import Data.Text.Encoding
 import Network.HTTP.Client
 import Network.HTTP.Types.Header
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as LB
+import qualified Data.Text as T
 import qualified Data.Aeson as Aeson
+import Data.Monoid ((<>))
 
 addHeader :: Header -> Endo Request
 addHeader header req = req { requestHeaders = header: requestHeaders req }
@@ -37,3 +41,6 @@ maybeProps props req = case props of
 
 payload :: Aeson.ToJSON a => a -> Endo Request
 payload ps req = req { requestBody = RequestBodyLBS (Aeson.encode ps) }
+
+payloadRaw :: T.Text -> Endo Request
+payloadRaw str req = req { requestBody = RequestBodyLBS (LB.fromStrict $ encodeUtf8 ("\"" <> str <> "\"")) }
