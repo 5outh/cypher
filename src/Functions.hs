@@ -68,6 +68,9 @@ maybeProps props req = case props of
     Nothing -> req
     Just props' -> req { requestBody = RequestBodyLBS (Aeson.encode props') }
 
+payload :: Aeson.ToJSON a => a -> Endo Request
+payload ps req = req { requestBody = RequestBodyLBS (Aeson.encode ps) }
+
 body :: Aeson.FromJSON a => Response LB.ByteString -> Maybe a
 body = Aeson.decode . responseBody
 
@@ -108,7 +111,7 @@ deleteNode_ conn nodeId next = do
     interpret conn next
 
 createRelationship_ conn nodeId rel next =
-    everythingOnAction interpret (json . post) (relationshipUrl nodeId) conn next
+    everythingOnAction interpret (json . post . payload rel) (relationshipUrl nodeId) conn next
 
 getRel_ conn relId =
     everythingOnAction interpret (json . get) (singleRelationshipUrl relId) conn
@@ -127,6 +130,7 @@ interpret conn = \case
         _ -> undefined
     Pure r -> return (Just r)
 
+-- TODO use
 newtype Neo4j a = Neo4j{ runNeo4j :: IO (Maybe a) }
 
 -- SOME TEST JUNK
