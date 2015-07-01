@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor, TypeOperators #-}
 module Cypher.Types.Action where
 
 import Cypher.Types.Responses
@@ -63,3 +63,6 @@ data ActionF next =
 
 -- | A Neo4jAction is just a Free Monad
 type Neo4jAction = Free ActionF
+
+-- | Action from a to Neo4jAction, returning r
+type a ~> r = a -> Neo4jAction r

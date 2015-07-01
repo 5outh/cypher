@@ -1,25 +1,11 @@
-{-# LANGUAGE LambdaCase, OverloadedStrings, TypeOperators, RecordWildCards #-}
-module Cypher.Functions where
-
-import Cypher.Types
-import Cypher.Utils
-import Cypher.Urls
-import Cypher.Actions
-import Cypher.Request
+module Cypher.Runners where
 
 import Network.HTTP.Client
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.Text as T
-import Control.Monad.Free
-import Control.Monad.Reader
-import Control.Applicative
 import Data.Text.Encoding
 import Data.HashMap.Lazy as L (empty)
-
--- TODO: Refactor into Reader w/ Conn/Manager
--- TODO: Move things around
--- TODO: Refactor from Maybe into ErrorResponse | Response
 
 body :: Aeson.FromJSON a => Response LB.ByteString -> Maybe a
 body = Aeson.decode . responseBody
@@ -67,23 +53,3 @@ createRelationship_ conn nodeId rel next =
 getRelationship_ :: Connection -> Int -> (RelationshipResponse ~> r) -> IO (Maybe r)
 getRelationship_ conn relId =
     everythingOnAction interpret (json . get) (singleRelationshipUrl relId) conn
-
-interpret :: Connection -> Neo4jAction r -> IO (Maybe r)
-interpret conn = \case
-    Free action -> case action of
-        ListPropertyKeys next -> listPropertyKeys_ conn next
-        GetRoot next -> getRoot_ conn next
-        GetNode nodeId next -> getNode_ conn nodeId next
-        CreateNode props next -> createNode_ conn props next
-        DeleteNode nodeId next -> deleteNode_ conn nodeId next
-        GetRelationship relId next -> getRelationship_ conn relId next
-        CreateRelationship nodeId rel next -> createRelationship_ conn nodeId rel next
-        _ -> undefined
-    Pure r -> return (Just r)
-
--- SOME TEST JUNK
-
-testConnection :: IO Connection
-testConnection = (<$> newManager defaultManagerSettings) (Connection "localhost" 7474)
-
-testRel = Relationship "http://localhost:7474/db/data/node/5" "TEST" L.empty
