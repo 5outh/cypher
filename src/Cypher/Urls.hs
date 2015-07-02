@@ -62,3 +62,9 @@ nodeRelationshipsUrl nodeId relType types =
 
 propertyKeysUrl :: MonadThrow m => Connection -> m Request
 propertyKeysUrl = parseEndpoint "/db/data/propertykeys"
+
+nodePropertyUrl :: MonadThrow m => Int -> Prop -> Connection -> m Request
+nodePropertyUrl nodeId prop = parseEndpoint ("/db/data/node/" <> ident nodeId <> "/properties/" <> prop)
+
+nodePropertiesUrl :: MonadThrow m => Int -> Connection -> m Request
+nodePropertiesUrl nodeId = parseEndpoint ("/db/data/node/" <> ident nodeId <> "/properties")

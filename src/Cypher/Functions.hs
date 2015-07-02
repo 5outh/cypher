@@ -9,6 +9,7 @@ import Cypher.Request
 import Debug.Trace
 
 import Network.HTTP.Client
+import Data.Aeson ((.=))
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
@@ -18,6 +19,8 @@ import Control.Monad.Reader
 import Control.Applicative
 import Data.Text.Encoding
 import Data.HashMap.Lazy as L (empty)
+import Data.Monoid((<>))
+import qualified Data.HashMap.Strict as HM
 
 -- TODO: Refactor into Reader w/ Conn/Manager
 -- TODO: Move things around
@@ -85,11 +88,15 @@ setRelationshipProperties_ conn relId props next = do
     interpret conn next
 
 -- | TODO: Needs FromJSON
-getRelationshipProperty_ :: Connection -> Int -> T.Text -> (T.Text ~> a) -> IO (Maybe a)
+getRelationshipProperty_ :: Connection -> Int -> T.Text -> (Props ~> a) -> IO (Maybe a)
 getRelationshipProperty_ conn relId prop next = do
     resp <- runRequest (json . get) (singleRelationshipPropertyUrl relId prop) conn
-    maybe (return Nothing) (interpret conn) (Just . next $ decodeBody resp)
-        where decodeBody = decodeUtf8 . LB.toStrict . responseBody
+    maybe (return Nothing) (interpret conn) (next <$> decodeBody resp)
+        -- TODO: abstract
+        where wrap x = "{\"wrapped\":" <> x <> "}"
+              unwrap :: Maybe (HM.HashMap T.Text Aeson.Value) -> Maybe Aeson.Value
+              unwrap = (>>= HM.lookup "wrapped")
+              decodeBody = unwrap . Aeson.decode . wrap . responseBody
 
 setRelationshipProperty_ :: Connection -> Int -> T.Text -> T.Text -> Neo4jAction r -> IO (Maybe r)
 setRelationshipProperty_ conn relId key val next = do
@@ -103,6 +110,24 @@ getNodeRelationships_ conn nodeId relType types =
 getRelationshipTypes_ :: Connection -> ([T.Text] ~> r) -> IO (Maybe r)
 getRelationshipTypes_ conn next =
     everythingOnAction interpret (json . get) relationshipTypesUrl conn next
+
+setNodeProperty_ :: Connection -> Int -> Prop -> Props -> Neo4jAction r -> IO (Maybe r)
+setNodeProperty_ conn nodeId prop props next = do
+    runRequest (json . put . payload props) (nodePropertyUrl nodeId prop) conn
+    interpret conn next
+
+setNodeProperties_ :: Connection -> Int -> Props -> (Props ~> r) -> IO (Maybe r)
+setNodeProperties_ conn nodeId props =
+    everythingOnAction interpret (json . put . payload props) (nodePropertiesUrl nodeId) conn
+
+getNodeProperty_ :: Connection -> Int -> Prop -> (Props ~> r) -> IO (Maybe r)
+getNodeProperty_ conn nodeId prop next = do
+    resp <- runRequest (json . get) (nodePropertyUrl nodeId prop) conn
+    maybe (return Nothing) (interpret conn) (next <$> decodeBody resp)
+        where wrap x = "{\"wrapped\":" <> x <> "}"
+              unwrap :: Maybe (HM.HashMap T.Text Aeson.Value) -> Maybe Aeson.Value
+              unwrap = (>>= HM.lookup "wrapped")
+              decodeBody = unwrap . Aeson.decode . wrap . responseBody
 
 interpret :: Connection -> Neo4jAction r -> IO (Maybe r)
 interpret conn = \case
@@ -121,6 +146,9 @@ interpret conn = \case
         SetRelationshipProperty relId key val next -> setRelationshipProperty_ conn relId key val next
         GetNodeRelationships nodeId relType types next -> getNodeRelationships_ conn nodeId relType types next
         GetRelationshipTypes next -> getRelationshipTypes_ conn next
+        SetNodeProperty nodeId prop props next -> setNodeProperty_ conn nodeId prop props next
+        SetNodeProperties nodeId props next -> setNodeProperties_ conn nodeId props next
+        GetNodeProperty nodeId prop next -> getNodeProperty_ conn nodeId prop next
         _ -> undefined
     Pure r -> return (Just r)
 
@@ -129,4 +157,8 @@ interpret conn = \case
 testConnection :: IO Connection
 testConnection = (<$> newManager defaultManagerSettings) (Connection "localhost" 7474)
 
-testRel = Relationship "http://localhost:7474/db/data/node/5" "TEST" (Aeson.object [])
+test = do
+    conn <- testConnection
+    interpret conn (getNodeProperty 9 "foo")
+
+

@@ -9,18 +9,28 @@ import Control.Monad.Free
 -- | A Neo4j Action
 data ActionF next =
       Authenticate T.Text T.Text (AuthResponse -> next)
+    -- | GET /propertykeys
     | ListPropertyKeys ([T.Text] -> next)
+    -- | GET /db/data/
     | GetRoot (RootResponse -> next)
-    -- | Node Actions
+    -- | GET /db/data/node/{Id}
     | GetNode Id (NodeResponse -> next)
+    -- | POST /db/data/node
     | CreateNode (Maybe Props) (NodeResponse -> next)
+    -- | DELETE /db/data/node/{Id}
     | DeleteNode Id next
 
-    | SetNodeProperty Id Prop Props
-    | SetNodeProperies Id Props
-    | GetNodeProperties Id
-    | GetNodeProperty Id Prop
+    -- | PUT /db/data/node/{Id}/properties/{Prop}
+    | SetNodeProperty Id Prop Props next
+    -- | PUT /db/data/node/{Id}/properties
+    | SetNodeProperties Id Props (Props -> next)
+    -- | TODO: GET /db/data/node/{Id}/properties
+    | GetNodeProperties Id (Props ~> next)
+    -- | TODO: GET /db/data/node/{Id}/properties/{Prop}
+    | GetNodeProperty Id Prop (Props -> next)
+    -- | TODO: DELETE /db/data/node/{Id}/properties
     | DeleteNodeProperties Id
+    -- | TODO: DELETE /db/data/node/{Id}/properties/{Prop}
     | DeleteNodeProperty Id Prop
     | AddNodeLabel Id Label
     | AddNodeLabels Id [Label]
@@ -33,22 +43,28 @@ data ActionF next =
     | GetAllLabels
     | GetNodeDegree Id RelType
     | GetNodeDegreeByType Id RelType [Typ]
+    -- | /db/data/node/{Id}/relationships/{RelType}/{&List[Types]}
     | GetNodeRelationships Id RelType [T.Text] ([RelationshipResponse] -> next)
 
-    -- | Relationship Actions
+    -- | GET /db/data/relationship/{Id}
     | GetRelationship Id (RelationshipResponse -> next)
-    -- NB. Id is starting node's ID
+    -- | POST /db/data/node/{Id}/relationships
     | CreateRelationship Id Relationship (RelationshipResponse -> next)
+    -- | DELETE /db/data/relationship/{Id}
     | DeleteRelationship Id next
+    -- | GET /db/data/relationship/{Id}/properties
     | GetRelationshipProperties Id (Props -> next)
+    -- | PUT /db/data/relationship/{Id}/properties
     | SetRelationshipProperties Id Props next
     | DeleteRelationshipProperties Id
 
-    | GetRelationshipProperty Id Prop (T.Text -> next)
+    -- | GET /db/data/relationship/{Id}/properties/{Prop}
+    | GetRelationshipProperty Id Prop (Props -> next)
+    -- | POST /db/data/relationship/{Id}/properties/{Prop}
     | SetRelationshipProperty Id Prop Prop next
     | DeleteRelationshipProperty Id Prop
 
-    | GetRelationships RelType [Typ]
+    -- | GET /db/data/relationship/types
     | GetRelationshipTypes ([T.Text] -> next)
 
     -- | Schema

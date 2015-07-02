@@ -36,7 +36,7 @@ deleteRelationship relId = liftF (DeleteRelationship relId ())
 getRelationshipProperties :: Int ~> Props
 getRelationshipProperties relId = liftFn (GetRelationshipProperties relId)
 
-getRelationshipProperty :: Int -> Prop ~> Prop
+getRelationshipProperty :: Int -> Prop ~> Props
 getRelationshipProperty relId prop = liftFn (GetRelationshipProperty relId prop)
 
 setRelationshipProperties :: Int -> Props ~> ()
@@ -50,6 +50,15 @@ getNodeRelationships nodeId relType types = liftFn (GetNodeRelationships nodeId 
 
 getRelationshipTypes :: Neo4jAction [T.Text]
 getRelationshipTypes = liftFn GetRelationshipTypes
+
+setNodeProperty :: Id -> Prop -> Props ~> ()
+setNodeProperty nodeId prop props = liftF (SetNodeProperty nodeId prop props ())
+
+setNodeProperties :: Id -> Props ~> Props
+setNodeProperties nodeId prop = liftFn (SetNodeProperties nodeId prop)
+
+getNodeProperty :: Id -> Prop ~> Props
+getNodeProperty nodeId prop = liftFn (GetNodeProperty nodeId prop)
 
 root :: Neo4jAction RootResponse
 root = liftF $ GetRoot id
