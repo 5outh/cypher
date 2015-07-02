@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings, RankNTypes, RecordWildCards, DeriveFunctor #-}
-
 module Cypher.Types
     ( Connection(..)
     , module Cypher.Types.Action

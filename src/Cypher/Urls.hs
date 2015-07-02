@@ -11,7 +11,7 @@ import Control.Monad.Catch (MonadThrow(..))
 
 parseEndpoint :: MonadThrow m => T.Text -> Connection -> m Request
 parseEndpoint t = parseUrl . T.unpack . append t . base
-    where base conn = "http://" <> connHost conn <> ":" <> (T.pack (show (connPort conn)))
+    where base conn = "http://" <> connHost conn <> ":" <> T.pack (show (connPort conn))
 
 baseUrl :: MonadThrow m => Connection -> m Request
 baseUrl = parseEndpoint "/"

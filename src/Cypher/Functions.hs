@@ -44,111 +44,114 @@ everythingOnAction doNext endo url conn@Connection{..} next = do
     resp <- runRequest endo url conn
     maybe (return Nothing) (doNext conn) (next <$> body resp)
 
-deleteByUrl conn url next = runRequest (json . delete) url conn >> interpret conn next
+deleteByUrl :: (Connection -> IO Request) -> Connection -> Neo4jAction r -> IO (Maybe r)
+deleteByUrl url conn next = runRequest (json . delete) url conn >> interpret conn next
+
+getProperty :: (Connection -> IO Request) -> Connection -> (Aeson.Value ~>  a) -> IO (Maybe a)
+getProperty url conn next = do
+    resp <- runRequest (json . get) url conn
+    maybe (return Nothing) (interpret conn) (next <$> decodeBody resp)
+        where wrap x = "{\"wrapped\":" <> x <> "}"
+              unwrap :: Maybe (HM.HashMap T.Text Aeson.Value) -> Maybe Aeson.Value
+              unwrap = (>>= HM.lookup "wrapped")
+              decodeBody = unwrap . Aeson.decode . wrap . responseBody
+
+setFromPayload load url conn next =
+    runRequest (json . put . payload load) url conn >> interpret conn next
 
 getRoot_ :: Connection -> (RootResponse -> Neo4jAction a) -> IO (Maybe a)
-getRoot_ conn next =
-    everythingOnAction interpret (json . get) baseUrl conn next
+getRoot_ = everythingOnAction interpret (json . get) baseUrl
 
 listPropertyKeys_ :: Connection -> ([T.Text] ~> a) -> IO (Maybe a)
-listPropertyKeys_ conn next =
-    everythingOnAction interpret (json . get) propertyKeysUrl conn next
+listPropertyKeys_ =
+    everythingOnAction interpret (json . get) propertyKeysUrl
 
-getNode_ :: Connection -> Int -> (NodeResponse ~> a) -> IO (Maybe a)
-getNode_ conn nodeId next =
- everythingOnAction interpret (json . get) (singleUrl nodeId) conn next
+getNode_ :: Int -> Connection -> (NodeResponse ~> a) -> IO (Maybe a)
+getNode_ nodeId =
+ everythingOnAction interpret (json . get) (singleUrl nodeId)
 
-createNode_ :: Connection -> Maybe Props -> (NodeResponse ~> a) -> IO (Maybe a)
-createNode_ conn props next =
-    everythingOnAction interpret (json . post . maybeProps props) nodeUrl conn next
+createNode_ :: Maybe Props -> Connection -> (NodeResponse ~> a) -> IO (Maybe a)
+createNode_ props =
+    everythingOnAction interpret (json . post . maybeProps props) nodeUrl
 
-deleteNode_ :: Connection -> Int -> Neo4jAction r -> IO (Maybe r)
-deleteNode_ conn nodeId next = do
-    runRequest (json . delete) (singleUrl nodeId) conn
-    interpret conn next
+deleteNode_ :: Int -> Connection -> Neo4jAction r -> IO (Maybe r)
+deleteNode_ nodeId = deleteByUrl (singleUrl nodeId)
 
-createRelationship_ :: Connection -> Int -> Relationship -> (RelationshipResponse ~> r) -> IO (Maybe r)
-createRelationship_ conn nodeId rel =
-    everythingOnAction interpret (json . post . payload rel) (relationshipUrl nodeId) conn
+createRelationship_ :: Int -> Relationship -> Connection -> (RelationshipResponse ~> r) -> IO (Maybe r)
+createRelationship_ nodeId rel =
+    everythingOnAction interpret (json . post . payload rel) (relationshipUrl nodeId)
 
-getRelationship_ :: Connection -> Int -> (RelationshipResponse ~> r) -> IO (Maybe r)
-getRelationship_ conn relId =
-    everythingOnAction interpret (json . get) (singleRelationshipUrl relId) conn
+getRelationship_ :: Int -> Connection -> (RelationshipResponse ~> r) -> IO (Maybe r)
+getRelationship_ relId =
+    everythingOnAction interpret (json . get) (singleRelationshipUrl relId)
 
-deleteRelationship_ :: Connection -> Int -> Neo4jAction r -> IO (Maybe r)
-deleteRelationship_ conn relId = deleteByUrl conn (singleRelationshipUrl relId)
+deleteRelationship_ :: Int -> Connection -> Neo4jAction r -> IO (Maybe r)
+deleteRelationship_ relId = deleteByUrl (singleRelationshipUrl relId)
 
-getRelationshipProperties_ :: Connection -> Int -> (Props ~> r) -> IO (Maybe r)
-getRelationshipProperties_ conn relId =
-    everythingOnAction interpret (json . get) (relationshipPropertiesUrl relId) conn
+getRelationshipProperties_ :: Int -> Connection -> (Props ~> r) -> IO (Maybe r)
+getRelationshipProperties_ relId =
+    everythingOnAction interpret (json . get) (relationshipPropertiesUrl relId)
 
-setRelationshipProperties_ :: Connection -> Int -> Props -> Neo4jAction r -> IO (Maybe r)
-setRelationshipProperties_ conn relId props next = do
-    runRequest (json . put . payload props) (relationshipPropertiesUrl relId) conn
-    interpret conn next
+setRelationshipProperties_ :: Int -> Props -> Connection -> Neo4jAction r -> IO (Maybe r)
+setRelationshipProperties_ relId props = setFromPayload props (relationshipPropertiesUrl relId)
 
--- | TODO: Needs FromJSON
-getRelationshipProperty_ :: Connection -> Int -> T.Text -> (Props ~> a) -> IO (Maybe a)
-getRelationshipProperty_ conn relId prop next = do
-    resp <- runRequest (json . get) (singleRelationshipPropertyUrl relId prop) conn
-    maybe (return Nothing) (interpret conn) (next <$> decodeBody resp)
-        -- TODO: abstract
-        where wrap x = "{\"wrapped\":" <> x <> "}"
-              unwrap :: Maybe (HM.HashMap T.Text Aeson.Value) -> Maybe Aeson.Value
-              unwrap = (>>= HM.lookup "wrapped")
-              decodeBody = unwrap . Aeson.decode . wrap . responseBody
+getRelationshipProperty_ :: Int -> T.Text -> Connection -> (Props ~> a) -> IO (Maybe a)
+getRelationshipProperty_ relId prop = getProperty (singleRelationshipPropertyUrl relId prop)
 
-setRelationshipProperty_ :: Connection -> Int -> T.Text -> T.Text -> Neo4jAction r -> IO (Maybe r)
-setRelationshipProperty_ conn relId key val next = do
-    runRequest (json . put . payload val) (singleRelationshipPropertyUrl relId key) conn
-    interpret conn next
+setRelationshipProperty_ :: Int -> T.Text -> T.Text -> Connection -> Neo4jAction r -> IO (Maybe r)
+setRelationshipProperty_ relId key val =
+    setFromPayload val (singleRelationshipPropertyUrl relId key)
 
-getNodeRelationships_ :: Connection -> Int -> RelType -> [T.Text] -> ([RelationshipResponse] ~> r) -> IO (Maybe r)
-getNodeRelationships_ conn nodeId relType types =
-    everythingOnAction interpret (json . get) (nodeRelationshipsUrl nodeId relType types) conn
+getNodeRelationships_ :: Int -> RelType -> [T.Text] -> Connection -> ([RelationshipResponse] ~> r) -> IO (Maybe r)
+getNodeRelationships_ nodeId relType types =
+    everythingOnAction interpret (json . get) (nodeRelationshipsUrl nodeId relType types)
 
 getRelationshipTypes_ :: Connection -> ([T.Text] ~> r) -> IO (Maybe r)
-getRelationshipTypes_ conn next =
-    everythingOnAction interpret (json . get) relationshipTypesUrl conn next
+getRelationshipTypes_ =
+    everythingOnAction interpret (json . get) relationshipTypesUrl
 
-setNodeProperty_ :: Connection -> Int -> Prop -> Props -> Neo4jAction r -> IO (Maybe r)
-setNodeProperty_ conn nodeId prop props next = do
-    runRequest (json . put . payload props) (nodePropertyUrl nodeId prop) conn
-    interpret conn next
+setNodeProperty_ :: Int -> Prop -> Props -> Connection -> Neo4jAction r -> IO (Maybe r)
+setNodeProperty_ nodeId prop props =
+    setFromPayload props (nodePropertyUrl nodeId prop)
 
-setNodeProperties_ :: Connection -> Int -> Props -> (Props ~> r) -> IO (Maybe r)
-setNodeProperties_ conn nodeId props =
-    everythingOnAction interpret (json . put . payload props) (nodePropertiesUrl nodeId) conn
+setNodeProperties_ :: Int -> Props -> Connection -> (Props ~> r) -> IO (Maybe r)
+setNodeProperties_ nodeId props =
+    everythingOnAction interpret (json . put . payload props) (nodePropertiesUrl nodeId)
 
-getNodeProperty_ :: Connection -> Int -> Prop -> (Props ~> r) -> IO (Maybe r)
-getNodeProperty_ conn nodeId prop next = do
-    resp <- runRequest (json . get) (nodePropertyUrl nodeId prop) conn
-    maybe (return Nothing) (interpret conn) (next <$> decodeBody resp)
-        where wrap x = "{\"wrapped\":" <> x <> "}"
-              unwrap :: Maybe (HM.HashMap T.Text Aeson.Value) -> Maybe Aeson.Value
-              unwrap = (>>= HM.lookup "wrapped")
-              decodeBody = unwrap . Aeson.decode . wrap . responseBody
+getNodeProperty_ :: Int -> Prop -> Connection -> (Props ~> r) -> IO (Maybe r)
+getNodeProperty_ nodeId prop =
+    getProperty (nodePropertyUrl nodeId prop)
+
+deleteNodeProperties_ :: Int -> Connection -> Neo4jAction r -> IO (Maybe r)
+deleteNodeProperties_ nodeId =
+    deleteByUrl (nodePropertiesUrl nodeId)
+
+deleteNodeProperty_ :: Int -> Prop -> Connection -> Neo4jAction r -> IO (Maybe r)
+deleteNodeProperty_ nodeId prop =
+    deleteByUrl (nodePropertyUrl nodeId prop)
 
 interpret :: Connection -> Neo4jAction r -> IO (Maybe r)
 interpret conn = \case
     Free action -> case action of
         ListPropertyKeys next -> listPropertyKeys_ conn next
         GetRoot next -> getRoot_ conn next
-        GetNode nodeId next -> getNode_ conn nodeId next
-        CreateNode props next -> createNode_ conn props next
-        DeleteNode nodeId next -> deleteNode_ conn nodeId next
-        GetRelationship relId next -> getRelationship_ conn relId next
-        CreateRelationship nodeId rel next -> createRelationship_ conn nodeId rel next
-        DeleteRelationship relId next -> deleteRelationship_ conn relId next
-        GetRelationshipProperties relId next -> getRelationshipProperties_ conn relId next
-        SetRelationshipProperties relId props next -> setRelationshipProperties_ conn relId props next
-        GetRelationshipProperty relId prop next -> getRelationshipProperty_ conn relId prop next
-        SetRelationshipProperty relId key val next -> setRelationshipProperty_ conn relId key val next
-        GetNodeRelationships nodeId relType types next -> getNodeRelationships_ conn nodeId relType types next
+        GetNode nodeId next -> getNode_ nodeId conn next
+        CreateNode props next -> createNode_ props conn next
+        DeleteNode nodeId next -> deleteNode_ nodeId conn next
+        GetRelationship relId next -> getRelationship_ relId conn next
+        CreateRelationship nodeId rel next -> createRelationship_ nodeId rel conn next
+        DeleteRelationship relId next -> deleteRelationship_ relId conn next
+        GetRelationshipProperties relId next -> getRelationshipProperties_ relId conn next
+        SetRelationshipProperties relId props next -> setRelationshipProperties_ relId props conn next
+        GetRelationshipProperty relId prop next -> getRelationshipProperty_ relId prop conn next
+        SetRelationshipProperty relId key val next -> setRelationshipProperty_ relId key val conn next
+        GetNodeRelationships nodeId relType types next -> getNodeRelationships_ nodeId relType types conn next
         GetRelationshipTypes next -> getRelationshipTypes_ conn next
-        SetNodeProperty nodeId prop props next -> setNodeProperty_ conn nodeId prop props next
-        SetNodeProperties nodeId props next -> setNodeProperties_ conn nodeId props next
-        GetNodeProperty nodeId prop next -> getNodeProperty_ conn nodeId prop next
+        SetNodeProperty nodeId prop props next -> setNodeProperty_ nodeId prop props conn next
+        SetNodeProperties nodeId props next -> setNodeProperties_ nodeId props conn next
+        GetNodeProperty nodeId prop next -> getNodeProperty_ nodeId prop conn next
+        DeleteNodeProperties nodeId next -> deleteNodeProperties_ nodeId conn next
+        DeleteNodeProperty nodeId prop next -> deleteNodeProperty_ nodeId prop conn next
         _ -> undefined
     Pure r -> return (Just r)
 

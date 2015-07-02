@@ -7,6 +7,9 @@ import Cypher.Utils
 import Control.Monad.Free
 import Data.Text as T
 
+root :: Neo4jAction RootResponse
+root = liftF $ GetRoot id
+
 authenticate :: T.Text -> T.Text ~> AuthResponse
 authenticate user pass = liftFn (Authenticate user pass)
 
@@ -60,5 +63,8 @@ setNodeProperties nodeId prop = liftFn (SetNodeProperties nodeId prop)
 getNodeProperty :: Id -> Prop ~> Props
 getNodeProperty nodeId prop = liftFn (GetNodeProperty nodeId prop)
 
-root :: Neo4jAction RootResponse
-root = liftF $ GetRoot id
+deleteNodeProperty :: Id -> Prop ~> ()
+deleteNodeProperty nodeId prop = liftF (DeleteNodeProperty nodeId prop ())
+
+deleteNodeProperties :: Id ~> ()
+deleteNodeProperties nodeId = liftF (DeleteNodeProperties nodeId ())

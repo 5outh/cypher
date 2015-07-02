@@ -24,14 +24,14 @@ data ActionF next =
     | SetNodeProperty Id Prop Props next
     -- | PUT /db/data/node/{Id}/properties
     | SetNodeProperties Id Props (Props -> next)
-    -- | TODO: GET /db/data/node/{Id}/properties
+    -- | GET /db/data/node/{Id}/properties
     | GetNodeProperties Id (Props ~> next)
-    -- | TODO: GET /db/data/node/{Id}/properties/{Prop}
+    -- | GET /db/data/node/{Id}/properties/{Prop}
     | GetNodeProperty Id Prop (Props -> next)
     -- | TODO: DELETE /db/data/node/{Id}/properties
-    | DeleteNodeProperties Id
+    | DeleteNodeProperties Id next
     -- | TODO: DELETE /db/data/node/{Id}/properties/{Prop}
-    | DeleteNodeProperty Id Prop
+    | DeleteNodeProperty Id Prop next
     | AddNodeLabel Id Label
     | AddNodeLabels Id [Label]
     | ReplaceLabels Id [Label]

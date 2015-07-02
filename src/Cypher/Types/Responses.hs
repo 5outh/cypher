@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RankNTypes, RecordWildCards, DeriveFunctor #-}
+{-# LANGUAGE OverloadedStrings, RankNTypes, RecordWildCards #-}
 module Cypher.Types.Responses where
 
 import Data.Aeson
