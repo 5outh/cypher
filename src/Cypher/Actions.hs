@@ -1,11 +1,12 @@
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeOperators, OverloadedStrings #-}
 module Cypher.Actions where
 
-import Cypher.Types
-import Cypher.Utils
+import           Cypher.Types
+import           Cypher.Utils
+import           Data.Monoid
 
-import Control.Monad.Free
-import Data.Text as T
+import           Control.Monad.Free
+import           Data.Text          as T
 
 commitTransaction :: Neo4jRequest ~> TransactionResponse
 commitTransaction req = liftFn (CommitTransaction req)
@@ -71,3 +72,8 @@ deleteNodeProperty nodeId prop = liftF (DeleteNodeProperty nodeId prop ())
 
 deleteNodeProperties :: Id ~> ()
 deleteNodeProperties nodeId = liftF (DeleteNodeProperties nodeId ())
+
+findNodesByProp :: T.Text -> T.Text -> Neo4jAction TransactionResponse
+findNodesByProp key val = do
+    let stmt = "MATCH (n{ " <> key <> ":\"" <> val <> "\"}) RETURN n"
+    commitTransaction (Neo4jRequest [Statement stmt] Nothing)

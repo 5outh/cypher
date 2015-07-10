@@ -2,12 +2,12 @@
 
 module Cypher.Urls where
 
-import Cypher.Types
-import Cypher.Utils
-import Data.Monoid
-import qualified Data.Text as T
-import Network.HTTP.Client (parseUrl, Request(..))
-import Control.Monad.Catch (MonadThrow(..))
+import           Control.Monad.Catch (MonadThrow (..))
+import           Cypher.Types
+import           Cypher.Utils
+import           Data.Monoid
+import qualified Data.Text           as T
+import           Network.HTTP.Client (Request (..), parseUrl)
 
 parseEndpoint :: MonadThrow m => T.Text -> Connection -> m Request
 parseEndpoint t = parseUrl . T.unpack . append t . base

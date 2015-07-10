@@ -7,9 +7,9 @@ module Cypher.Types.Responses where
 import           Control.Applicative
 import           Control.Monad
 import           Data.Aeson
-import qualified Data.Text           as T
 import qualified Data.HashMap.Strict as HM
-import Data.Maybe
+import           Data.Maybe
+import qualified Data.Text           as T
 
 -- | Avaliable Relationship Types
 data RelType = All | In | Out deriving (Eq, Enum)
@@ -184,7 +184,7 @@ instance FromJSON RelationshipResponse where
     parseJSON _ = mzero
 
 data CypherError = CypherError {
-    errorCode :: T.Text,
+    errorCode    :: T.Text,
     errorMessage :: T.Text
 } deriving (Show, Eq)
 
@@ -193,9 +193,9 @@ instance FromJSON CypherError where
     parseJSON _ = mzero
 
 data GraphNode = GraphNode {
-    graphNodeId :: T.Text,
+    graphNodeId     :: T.Text,
     graphNodeLabels :: [T.Text],
-    nodeProperties :: Props
+    nodeProperties  :: Props
 } deriving (Show, Eq)
 
 instance FromJSON GraphNode where
@@ -205,10 +205,10 @@ instance FromJSON GraphNode where
     parseJSON _ = mzero
 
 data GraphRelationship = GraphRelationship {
-    graphRelationshipId :: T.Text,
-    graphRelationshipType :: T.Text,
-    graphRelationshipStartNode :: T.Text,
-    graphRelationshipEndNode :: T.Text,
+    graphRelationshipId         :: T.Text,
+    graphRelationshipType       :: T.Text,
+    graphRelationshipStartNode  :: T.Text,
+    graphRelationshipEndNode    :: T.Text,
     graphRelationshipProperties :: Props
 } deriving (Show, Eq)
 
@@ -221,7 +221,7 @@ instance FromJSON GraphRelationship where
     parseJSON _ = mzero
 
 data ResultGraph = ResultGraph {
-    graphNodes :: [GraphNode],
+    graphNodes         :: [GraphNode],
     graphRelationships :: [GraphRelationship]
 } deriving (Show, Eq)
 
@@ -239,7 +239,7 @@ instance FromJSON GraphInfo where
 
 data CypherResult = CypherResult {
     resultColumns :: [T.Text],
-    resultData :: [GraphInfo]
+    resultData    :: [GraphInfo]
 } deriving (Show, Eq)
 
 instance FromJSON CypherResult where
@@ -248,7 +248,7 @@ instance FromJSON CypherResult where
 
 data TransactionResponse = TransactionResponse {
     results :: [CypherResult],
-    errors :: [CypherError]
+    errors  :: [CypherError]
 } deriving (Show, Eq)
 
 instance FromJSON TransactionResponse where
