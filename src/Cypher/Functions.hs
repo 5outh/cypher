@@ -1,26 +1,28 @@
-{-# LANGUAGE LambdaCase, OverloadedStrings, TypeOperators, RecordWildCards #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE TypeOperators     #-}
 module Cypher.Functions where
 
-import Cypher.Types
-import Cypher.Utils
-import Cypher.Urls
-import Cypher.Actions
-import Cypher.Request
-import Debug.Trace
+import           Cypher.Actions
+import           Cypher.Request
+import           Cypher.Types
+import           Cypher.Urls
+import           Cypher.Utils
+import           Debug.Trace
 
-import Network.HTTP.Client
-import Data.Aeson ((.=))
-import qualified Data.Aeson as Aeson
-import qualified Data.ByteString as B
+import           Control.Applicative
+import           Control.Monad.Free
+import           Data.Aeson           ((.=))
+import qualified Data.Aeson           as Aeson
+import qualified Data.ByteString      as B
 import qualified Data.ByteString.Lazy as LB
-import qualified Data.Text as T
-import Control.Monad.Free
-import Control.Monad.Reader
-import Control.Applicative
-import Data.Text.Encoding
-import Data.HashMap.Lazy as L (empty)
-import Data.Monoid((<>))
-import qualified Data.HashMap.Strict as HM
+import           Data.HashMap.Lazy    as L (empty)
+import qualified Data.HashMap.Strict  as HM
+import           Data.Monoid          ((<>))
+import qualified Data.Text            as T
+import           Data.Text.Encoding
+import           Network.HTTP.Client
 
 -- TODO: Refactor into Reader w/ Conn/Manager
 -- TODO: Move things around
@@ -130,6 +132,10 @@ deleteNodeProperty_ :: Int -> Prop -> Connection -> Neo4jAction r -> IO (Maybe r
 deleteNodeProperty_ nodeId prop =
     deleteByUrl (nodePropertyUrl nodeId prop)
 
+commitTransaction_ :: Neo4jRequest -> Connection -> (TransactionResponse ~> r) -> IO (Maybe r)
+commitTransaction_ req =
+    everythingOnAction interpret (json . post . payload req) commitUrl
+
 interpret :: Connection -> Neo4jAction r -> IO (Maybe r)
 interpret conn = \case
     Free action -> case action of
@@ -152,6 +158,7 @@ interpret conn = \case
         GetNodeProperty nodeId prop next -> getNodeProperty_ nodeId prop conn next
         DeleteNodeProperties nodeId next -> deleteNodeProperties_ nodeId conn next
         DeleteNodeProperty nodeId prop next -> deleteNodeProperty_ nodeId prop conn next
+        CommitTransaction req next -> commitTransaction_ req conn next
         _ -> undefined
     Pure r -> return (Just r)
 
@@ -162,6 +169,5 @@ testConnection = (<$> newManager defaultManagerSettings) (Connection "localhost"
 
 test = do
     conn <- testConnection
-    interpret conn (getNodeProperty 9 "foo")
-
-
+    let thing = listPropertyKeys
+    interpret conn thing

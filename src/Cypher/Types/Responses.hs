@@ -1,12 +1,15 @@
-{-# LANGUAGE OverloadedStrings, RankNTypes, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes        #-}
+{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE TupleSections     #-}
 module Cypher.Types.Responses where
 
-import Data.Aeson
-import qualified Data.Text as T
-import qualified Data.Map as M
-import Control.Applicative
-import Control.Monad
-import Control.Monad.Free
+import           Control.Applicative
+import           Control.Monad
+import           Data.Aeson
+import qualified Data.Text           as T
+import qualified Data.HashMap.Strict as HM
+import Data.Maybe
 
 -- | Avaliable Relationship Types
 data RelType = All | In | Out deriving (Eq, Enum)
@@ -36,10 +39,6 @@ data Statement = Statement {
     statement :: T.Text
 } deriving (Show, Eq)
 
-data Neo4jRequest = Neo4jRequest {
-    statements :: [Statement]
-} deriving (Show, Eq)
-
 instance ToJSON Statement where
     toJSON (Statement stmt) = object ["statement" .= stmt]
 
@@ -47,12 +46,23 @@ instance FromJSON Statement where
     parseJSON (Object v) = Statement <$> v .: "statement"
     parseJSON _ = mzero
 
+data Neo4jRequest = Neo4jRequest {
+    statements :: [Statement],
+    parameters :: Maybe Props
+} deriving (Show, Eq)
+
 instance ToJSON Neo4jRequest where
-    toJSON (Neo4jRequest stmts) = object ["statements" .= map toJSON stmts]
+    toJSON (Neo4jRequest stmts params) = object props
+        where props = catMaybes
+                      [ Just $ "statements" .= map toJSON stmts
+                      , ("parameters",) <$> params
+                      -- Explicitly use 'Row'/'Graph' response type.
+                      , Just $ "resultDataContents" .= ([ "row", "graph" ] :: [T.Text])
+                      ]
 
 data Relationship = Relationship {
-    to :: T.Text,
-    typ :: T.Text,
+    to    :: T.Text,
+    typ   :: T.Text,
     props :: Props
 } deriving (Show, Eq)
 
@@ -64,7 +74,7 @@ instance ToJSON Relationship where
         ]
 
 data RelationshipDecl = RelationshipDecl {
-    rdType :: T.Text,
+    rdType    :: T.Text,
     direction :: RelType
 } deriving (Show, Eq)
 
@@ -75,8 +85,8 @@ instance ToJSON RelationshipDecl where
         ]
 
 data ShortestPathRequest = ShortestPathRequest {
-    sprTo :: T.Text, -- URL
-    maxDepth :: Int,
+    sprTo         :: T.Text, -- URL
+    maxDepth      :: Int,
     relationships :: RelationshipDecl
 } deriving (Show, Eq)
 
@@ -89,8 +99,8 @@ instance ToJSON ShortestPathRequest where
         ]
 
 data DijkstraRequest = DijkstraRequest {
-    drTo :: T.Text,
-    costProperty :: T.Text,
+    drTo            :: T.Text,
+    costProperty    :: T.Text,
     drRelationships :: RelationshipDecl
 } deriving (Show, Eq)
 
@@ -103,8 +113,8 @@ instance ToJSON DijkstraRequest where
         ]
 
 data AuthResponse = AuthResponse {
-    username :: T.Text,
-    passwordChange :: T.Text,
+    username               :: T.Text,
+    passwordChange         :: T.Text,
     passwordChangeRequired :: T.Text
 } deriving (Show, Eq)
 
@@ -116,7 +126,7 @@ instance FromJSON AuthResponse where
 
 data RootResponse = RootResponse {
     management :: T.Text,
-    data' :: T.Text
+    data'      :: T.Text
 } deriving (Show, Eq)
 
 instance FromJSON RootResponse where
@@ -125,7 +135,7 @@ instance FromJSON RootResponse where
     parseJSON _ = mzero
 
 data NodeMetadata = NodeMetadata {
-    nodeId :: Int,
+    nodeId     :: Int,
     nodeLabels :: [T.Text]
 } deriving (Show, Eq)
 
@@ -136,9 +146,9 @@ instance FromJSON NodeMetadata where
 -- NOTE: Links apart from `self` are not included; we can reconstruct them from the id.
 data NodeResponse = NodeResponse {
     nodeExtensions :: Object,
-    nodeSelf :: T.Text,
-    nodeMetadata :: NodeMetadata,
-    nodeData :: Object -- NOTE: Given a way to parse THIS into a Haskell object, we can update etc.
+    nodeSelf       :: T.Text,
+    nodeMetadata   :: NodeMetadata,
+    nodeData       :: Object -- NOTE: Given a way to parse THIS into a Haskell object, we can update etc.
 } deriving (Show, Eq)
 
 instance FromJSON NodeResponse where
@@ -149,7 +159,7 @@ instance FromJSON NodeResponse where
     parseJSON _ = mzero
 
 data RelationshipMetadata = RelationshipMetadata {
-    relId :: Int,
+    relId   :: Int,
     relType :: T.Text
 } deriving (Show, Eq)
 
@@ -159,11 +169,11 @@ instance FromJSON RelationshipMetadata where
 
 data RelationshipResponse = RelationshipResponse {
     relExtensions :: Object,
-    relSelf :: T.Text,
-    relStart :: T.Text, -- Start Node URL
-    relEnd :: T.Text, -- End Node URL
-    relMetadata :: RelationshipMetadata,
-    relData :: Object
+    relSelf       :: T.Text,
+    relStart      :: T.Text, -- Start Node URL
+    relEnd        :: T.Text, -- End Node URL
+    relMetadata   :: RelationshipMetadata,
+    relData       :: Object
 } deriving (Show, Eq)
 
 instance FromJSON RelationshipResponse where
@@ -173,4 +183,76 @@ instance FromJSON RelationshipResponse where
         <*> v .: "end"
         <*> v .: "metadata"
         <*> v .: "data"
+    parseJSON _ = mzero
+
+data CypherError = CypherError {
+    errorCode :: T.Text,
+    errorMessage :: T.Text
+}
+
+instance FromJSON CypherError where
+    parseJSON (Object v) = CypherError <$> v .: "code" <*> v .: "message"
+    parseJSON _ = mzero
+
+data GraphNode = GraphNode {
+    graphNodeId :: T.Text,
+    graphNodeLabels :: [T.Text],
+    nodeProperties :: Props
+}
+
+instance FromJSON GraphNode where
+    parseJSON (Object v) = GraphNode <$> v .: "id"
+        <*> v .: "labels"
+        <*> v .: "properties"
+    parseJSON _ = mzero
+
+data GraphRelationship = GraphRelationship {
+    graphRelationshipId :: T.Text,
+    graphRelationshipType :: T.Text,
+    graphRelationshipStartNode :: T.Text,
+    graphRelationshipEndNode :: T.Text,
+    graphRelationshipProperties :: Props
+}
+
+instance FromJSON GraphRelationship where
+    parseJSON (Object v) = GraphRelationship <$> v .: "id"
+        <*> v .: "type"
+        <*> v .: "startNode"
+        <*> v .: "endNode"
+        <*> v .: "properties"
+    parseJSON _ = mzero
+
+data ResultGraph = ResultGraph {
+    graphNodes :: [GraphNode],
+    graphRelationships :: [GraphRelationship]
+}
+
+instance FromJSON ResultGraph where
+    parseJSON (Object v) = ResultGraph <$> v .: "nodes" <*> v .: "relationships"
+    parseJSON _ = mzero
+
+data GraphInfo = GraphInfo {
+    graph :: ResultGraph
+}
+
+instance FromJSON GraphInfo where
+    parseJSON (Object v) = GraphInfo <$> v .: "graph"
+    parseJSON _ = mzero
+
+data CypherResult = CypherResult {
+    resultColumns :: [T.Text],
+    resultData :: [GraphInfo]
+}
+
+instance FromJSON CypherResult where
+    parseJSON (Object v) = CypherResult <$> v .: "columns" <*> v .: "data"
+    parseJSON _ = mzero
+
+data TransactionResponse = TransactionResponse {
+    results :: [CypherResult],
+    errors :: [CypherError]
+}
+
+instance FromJSON TransactionResponse where
+    parseJSON (Object v) = TransactionResponse <$> v .: "results" <*> v .: "errors"
     parseJSON _ = mzero

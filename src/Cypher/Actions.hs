@@ -7,6 +7,9 @@ import Cypher.Utils
 import Control.Monad.Free
 import Data.Text as T
 
+commitTransaction :: Neo4jRequest ~> TransactionResponse
+commitTransaction req = liftFn (CommitTransaction req)
+
 root :: Neo4jAction RootResponse
 root = liftF $ GetRoot id
 

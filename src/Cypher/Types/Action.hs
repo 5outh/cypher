@@ -9,6 +9,8 @@ import Control.Monad.Free
 -- | A Neo4j Action
 data ActionF next =
       Authenticate T.Text T.Text (AuthResponse -> next)
+    -- | POST /transaction/commit
+    | CommitTransaction Neo4jRequest (TransactionResponse -> next)
     -- | GET /propertykeys
     | ListPropertyKeys ([T.Text] -> next)
     -- | GET /db/data/
@@ -19,7 +21,6 @@ data ActionF next =
     | CreateNode (Maybe Props) (NodeResponse -> next)
     -- | DELETE /db/data/node/{Id}
     | DeleteNode Id next
-
     -- | PUT /db/data/node/{Id}/properties/{Prop}
     | SetNodeProperty Id Prop Props next
     -- | PUT /db/data/node/{Id}/properties
