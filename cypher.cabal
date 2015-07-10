@@ -16,8 +16,14 @@ extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
-  -- exposed-modules:
-  -- other-modules:
+  exposed-modules: Cypher.Functions
+  other-modules: Cypher.Actions,
+                 Cypher.Request,
+                 Cypher.Types,
+                 Cypher.Urls,
+                 Cypher.Utils,
+                 Cypher.Types.Action,
+                 Cypher.Types.Responses
   -- other-extensions:
   build-depends:       base >=4.7 && <4.8,
                        aeson >=0.9 && <0.10,
@@ -28,6 +34,8 @@ library
                        unordered-containers >= 0.2 && <0.3,
                        exceptions >= 0.8 && <0.9,
                        http-client >= 0.4 && <0.5,
-                       bytestring >= 0.10 && <0.11
-  hs-source-dirs:      src
+                       bytestring >= 0.10 && <0.11,
+                       http-types >= 0.8 && <0.9
+  hs-source-dirs:      src,
+                       src/Cypher
   default-language:    Haskell2010
