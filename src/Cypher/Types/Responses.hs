@@ -40,7 +40,7 @@ data Statement = Statement {
 } deriving (Show, Eq)
 
 instance ToJSON Statement where
-    toJSON (Statement stmt) = object ["statement" .= stmt]
+    toJSON (Statement stmt) = object ["statement" .= stmt, "resultDataContents" .= ([ "row", "graph" ] :: [T.Text])]
 
 instance FromJSON Statement where
     parseJSON (Object v) = Statement <$> v .: "statement"
@@ -56,8 +56,6 @@ instance ToJSON Neo4jRequest where
         where props = catMaybes
                       [ Just $ "statements" .= map toJSON stmts
                       , ("parameters",) <$> params
-                      -- Explicitly use 'Row'/'Graph' response type.
-                      , Just $ "resultDataContents" .= ([ "row", "graph" ] :: [T.Text])
                       ]
 
 data Relationship = Relationship {
@@ -188,7 +186,7 @@ instance FromJSON RelationshipResponse where
 data CypherError = CypherError {
     errorCode :: T.Text,
     errorMessage :: T.Text
-}
+} deriving (Show, Eq)
 
 instance FromJSON CypherError where
     parseJSON (Object v) = CypherError <$> v .: "code" <*> v .: "message"
@@ -198,7 +196,7 @@ data GraphNode = GraphNode {
     graphNodeId :: T.Text,
     graphNodeLabels :: [T.Text],
     nodeProperties :: Props
-}
+} deriving (Show, Eq)
 
 instance FromJSON GraphNode where
     parseJSON (Object v) = GraphNode <$> v .: "id"
@@ -212,7 +210,7 @@ data GraphRelationship = GraphRelationship {
     graphRelationshipStartNode :: T.Text,
     graphRelationshipEndNode :: T.Text,
     graphRelationshipProperties :: Props
-}
+} deriving (Show, Eq)
 
 instance FromJSON GraphRelationship where
     parseJSON (Object v) = GraphRelationship <$> v .: "id"
@@ -225,7 +223,7 @@ instance FromJSON GraphRelationship where
 data ResultGraph = ResultGraph {
     graphNodes :: [GraphNode],
     graphRelationships :: [GraphRelationship]
-}
+} deriving (Show, Eq)
 
 instance FromJSON ResultGraph where
     parseJSON (Object v) = ResultGraph <$> v .: "nodes" <*> v .: "relationships"
@@ -233,7 +231,7 @@ instance FromJSON ResultGraph where
 
 data GraphInfo = GraphInfo {
     graph :: ResultGraph
-}
+} deriving (Show, Eq)
 
 instance FromJSON GraphInfo where
     parseJSON (Object v) = GraphInfo <$> v .: "graph"
@@ -242,7 +240,7 @@ instance FromJSON GraphInfo where
 data CypherResult = CypherResult {
     resultColumns :: [T.Text],
     resultData :: [GraphInfo]
-}
+} deriving (Show, Eq)
 
 instance FromJSON CypherResult where
     parseJSON (Object v) = CypherResult <$> v .: "columns" <*> v .: "data"
@@ -251,7 +249,7 @@ instance FromJSON CypherResult where
 data TransactionResponse = TransactionResponse {
     results :: [CypherResult],
     errors :: [CypherError]
-}
+} deriving (Show, Eq)
 
 instance FromJSON TransactionResponse where
     parseJSON (Object v) = TransactionResponse <$> v .: "results" <*> v .: "errors"

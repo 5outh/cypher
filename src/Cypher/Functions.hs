@@ -167,7 +167,10 @@ interpret conn = \case
 testConnection :: IO Connection
 testConnection = (<$> newManager defaultManagerSettings) (Connection "localhost" 7474)
 
+
+-- test :: IO (Maybe TransactionResponse)
 test = do
     conn <- testConnection
-    let thing = listPropertyKeys
-    interpret conn thing
+    let thing = commitTransaction (Neo4jRequest [Statement "CREATE (n) RETURN id(n)"] Nothing)
+    res <- interpret conn thing
+    print res
